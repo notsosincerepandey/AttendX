@@ -13,7 +13,7 @@ import {
   PollOption,
 } from "@/types";
 import { UNIVERSITY_DATABASE } from "@/data/extractedTimetables";
-import { getCurrentUser, setCurrentUser, ADMIN_USER, getRegisteredUsers, saveRegisteredUsers } from "@/lib/auth";
+import { getCurrentUser, setCurrentUser, getRegisteredUsers, saveRegisteredUsers } from "@/lib/auth";
 import { canUserVoteInPoll, canUserClosePoll, canUserCreatePoll } from "@/lib/serverPolls";
 
 export function getTodayDateStr(): string {
@@ -25,12 +25,12 @@ export function getTodayDateStr(): string {
 }
 
 // 1. Current Active Student Profile
-export function getStoredProfile(): StudentProfile {
+export function getStoredProfile(): StudentProfile | null {
   const currentUser = getCurrentUser();
   if (currentUser) {
     return currentUser as StudentProfile;
   }
-  return ADMIN_USER as StudentProfile;
+  return null;
 }
 
 export function saveStoredProfile(profile: StudentProfile): void {
@@ -132,9 +132,9 @@ export function generateSampleAttendance(profile: StudentProfile): AttendanceRec
   return records;
 }
 
-export function getStoredAttendance(profile?: StudentProfile): AttendanceRecord[] {
+export function getStoredAttendance(profile?: StudentProfile | null): AttendanceRecord[] {
   if (typeof window === "undefined") return [];
-  const currentProfile = profile || getStoredProfile();
+  const currentProfile = profile !== undefined ? profile : getStoredProfile();
   if (!currentProfile || !currentProfile.id) return [];
 
   const key = getAttendanceStorageKey(currentProfile.id);
@@ -158,8 +158,9 @@ export function getStoredAttendance(profile?: StudentProfile): AttendanceRecord[
   return sampleRecords;
 }
 
-export function resetToDemoData(profile?: StudentProfile): AttendanceRecord[] {
-  const currentProfile = profile || getStoredProfile();
+export function resetToDemoData(profile?: StudentProfile | null): AttendanceRecord[] {
+  const currentProfile = profile !== undefined ? profile : getStoredProfile();
+  if (!currentProfile) return [];
   const sample = generateSampleAttendance(currentProfile);
   saveStoredAttendance(sample, currentProfile.id);
   return sample;
@@ -218,6 +219,7 @@ export function updatePeriodAttendance(
   reason?: string
 ): AttendanceRecord[] {
   const profile = getStoredProfile();
+  if (!profile) return [];
   const records = getStoredAttendance(profile);
   let oldStatus = "PENDING";
   let targetSubject = "";
@@ -294,6 +296,7 @@ export function markAllPeriodsForDate(
   newStatus: "PRESENT" | "ABSENT" | "CANCELLED"
 ): AttendanceRecord[] {
   const profile = getStoredProfile();
+  if (!profile) return [];
   const timetable = getActiveTimetable(profile);
   const records = getStoredAttendance(profile);
   const dateObj = new Date(dateStr);
@@ -347,6 +350,7 @@ export function markLabSession(
   newStatus: "PRESENT" | "ABSENT" | "CANCELLED"
 ): AttendanceRecord[] {
   const profile = getStoredProfile();
+  if (!profile) return [];
   const timetable = getActiveTimetable(profile);
   const records = getStoredAttendance(profile);
   const dateObj = new Date(dateStr);
@@ -402,7 +406,7 @@ function getTimetableStorageKey(userId: string): string {
   return `attendx_custom_timetables_user_${userId}`;
 }
 
-export function getActiveTimetable(profile: StudentProfile): UniversityTimetable {
+export function getActiveTimetable(profile?: StudentProfile | null): UniversityTimetable {
   if (typeof window !== "undefined" && profile?.id) {
     try {
       // 1. Personal override if student customized personally
@@ -410,26 +414,28 @@ export function getActiveTimetable(profile: StudentProfile): UniversityTimetable
       const customRaw = localStorage.getItem(key);
       if (customRaw) {
         const customMap: Record<string, UniversityTimetable> = JSON.parse(customRaw);
-        if (customMap[profile.activeTimetableId]) {
+        if (profile.activeTimetableId && customMap[profile.activeTimetableId]) {
           return customMap[profile.activeTimetableId];
         }
       }
 
       // 2. Class Admin official class timetable override
-      const classRaw = localStorage.getItem(
-        `attendx_class_timetable_${profile.branchCode}_${profile.section}`
-      );
-      if (classRaw) {
-        return JSON.parse(classRaw);
+      if (profile.branchCode && profile.section) {
+        const classRaw = localStorage.getItem(
+          `attendx_class_timetable_${profile.branchCode}_${profile.section}`
+        );
+        if (classRaw) {
+          return JSON.parse(classRaw);
+        }
       }
     } catch (e) {
       console.error(e);
     }
   }
 
-  const found = UNIVERSITY_DATABASE.timetables.find(
-    (t) => t.id === profile.activeTimetableId
-  );
+  const found = profile?.activeTimetableId
+    ? UNIVERSITY_DATABASE.timetables.find((t) => t.id === profile.activeTimetableId)
+    : undefined;
   return (
     found ||
     UNIVERSITY_DATABASE.timetables[0] || {
@@ -453,9 +459,9 @@ export function getActiveTimetable(profile: StudentProfile): UniversityTimetable
 export function saveOfficialClassTimetable(
   timetable: UniversityTimetable,
   authorName: string,
-  callerProfile?: StudentProfile
+  callerProfile?: StudentProfile | null
 ): boolean {
-  const caller = callerProfile || (typeof window !== "undefined" ? getStoredProfile() : undefined);
+  const caller = callerProfile !== undefined ? callerProfile : (typeof window !== "undefined" ? getStoredProfile() : null);
   if (!caller) return false;
 
   if (caller.role !== "admin" && caller.role !== "class_admin") {
@@ -516,8 +522,8 @@ export function saveOfficialClassTimetable(
   }
 }
 
-export function resetCustomTimetable(profile?: StudentProfile): UniversityTimetable {
-  const currentProfile = profile || getStoredProfile();
+export function resetCustomTimetable(profile?: StudentProfile | null): UniversityTimetable {
+  const currentProfile = profile !== undefined ? profile : getStoredProfile();
   if (typeof window !== "undefined" && currentProfile?.id) {
     try {
       const key = getTimetableStorageKey(currentProfile.id);
@@ -609,6 +615,11 @@ export function getCancellationReports(): CancellationReport[] {
 export function submitCancellationReport(
   report: Omit<CancellationReport, "id" | "confirmationCount" | "status" | "createdAt">
 ): CancellationReport {
+  const profile = getStoredProfile();
+  if (!profile || (profile.role !== "admin" && profile.role !== "class_admin")) {
+    throw new Error("Access Denied: Only Administrators and Class CRs are authorized to submit cancellation reports.");
+  }
+
   const existing = getCancellationReports();
   const newReport: CancellationReport = {
     ...report,
@@ -625,6 +636,11 @@ export function submitCancellationReport(
 }
 
 export function confirmCancellationReport(reportId: string): CancellationReport[] {
+  const profile = getStoredProfile();
+  if (!profile || (profile.role !== "admin" && profile.role !== "class_admin")) {
+    throw new Error("Access Denied: Only Administrators and Class CRs are authorized to confirm cancellation reports.");
+  }
+
   const existing = getCancellationReports();
   let confirmedReport: CancellationReport | undefined;
 
@@ -801,7 +817,7 @@ export function getNotifications(): NotificationItem[] {
   // 2. Class announcements matching student's branch/section or target ALL
   const announcements = getClassAnnouncements().filter((a) => {
     if (!a.targetBranchCode || a.targetBranchCode === "ALL") return true;
-    if (a.targetBranchCode === profile.branchCode) {
+    if (profile && a.targetBranchCode === profile.branchCode) {
       if (!a.targetSection || a.targetSection === "ALL" || a.targetSection === profile.section) {
         return true;
       }
@@ -829,7 +845,9 @@ export function getNotifications(): NotificationItem[] {
       {
         id: "n-1",
         title: "Welcome to AttendX",
-        message: `Logged in as ${profile.fullName} (${profile.branchCode} ${profile.section}, Batch ${profile.batch}). Start tracking your daily classes!`,
+        message: profile
+          ? `Logged in as ${profile.fullName} (${profile.branchCode} ${profile.section}, Batch ${profile.batch}). Start tracking your daily classes!`
+          : "Welcome to AttendX. Start tracking your daily classes!",
         type: "info",
         timestamp: "Just now",
         isRead: false,
@@ -842,6 +860,7 @@ export function getNotifications(): NotificationItem[] {
 export function markNotificationAsRead(id: string): void {
   if (typeof window === "undefined") return;
   const profile = getStoredProfile();
+  if (!profile?.id) return;
 
   // If announcement
   try {

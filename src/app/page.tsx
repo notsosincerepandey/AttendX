@@ -50,6 +50,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     const prof = getStoredProfile();
+    if (!prof) {
+      setProfile(null);
+      return;
+    }
     const att = getStoredAttendance(prof);
     const tt = getActiveTimetable(prof);
     setProfile(prof);

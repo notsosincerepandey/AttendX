@@ -77,8 +77,12 @@ export default function TimetableManagementPage() {
 
   useEffect(() => {
     const prof = getStoredProfile();
+    if (!prof) {
+      setProfile(null);
+      return;
+    }
     // For Admin account ONLY, replace My Timetable destination with Timetable Management Centre
-    if (prof?.role === "admin") {
+    if (prof.role === "admin") {
       router.replace("/admin?tab=timetables");
       return;
     }

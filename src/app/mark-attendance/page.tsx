@@ -42,6 +42,10 @@ export default function MarkAttendancePage() {
 
   useEffect(() => {
     const prof = getStoredProfile();
+    if (!prof) {
+      setProfile(null);
+      return;
+    }
     const tt = getActiveTimetable(prof);
     const att = getStoredAttendance(prof);
     const today = getTodayDateStr();

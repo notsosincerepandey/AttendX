@@ -26,7 +26,6 @@ import {
 import { UserAccount, NotificationItem } from "@/types";
 import { getCurrentUser, logoutUser, getSessionToken } from "@/lib/auth";
 import {
-  getStoredProfile,
   getNotifications,
   markNotificationAsRead,
   createClassAnnouncement,

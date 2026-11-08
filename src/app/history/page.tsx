@@ -49,6 +49,10 @@ export default function AttendanceHistoryPage() {
 
   useEffect(() => {
     const prof = getStoredProfile();
+    if (!prof) {
+      setProfile(null);
+      return;
+    }
     const att = getStoredAttendance(prof);
     const tt = getActiveTimetable(prof);
     const logs = getAuditLogs();

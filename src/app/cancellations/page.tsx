@@ -10,26 +10,27 @@ import {
   getStoredProfile,
   getActiveTimetable,
   getCancellationReports,
-  submitCancellationReport,
-  confirmCancellationReport,
   getTodayDateStr,
 } from "@/lib/storage";
+import { getSessionToken } from "@/lib/auth";
 import {
   AlertTriangle,
   Users,
   CheckCircle2,
   Plus,
-  ShieldCheck,
-  Calendar,
-  Clock,
-  Sparkles,
   Info,
+  AlertCircle,
 } from "lucide-react";
 
 export default function CancellationsPage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [timetable, setTimetable] = useState<UniversityTimetable | null>(null);
   const [reports, setReports] = useState<CancellationReport[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
 
   // Form state
@@ -41,13 +42,38 @@ export default function CancellationsPage() {
   >("TEACHER_ABSENT");
   const [reportDescription, setReportDescription] = useState("");
 
+  const fetchReports = async () => {
+    setIsLoading(true);
+    const token = getSessionToken();
+    try {
+      const res = await fetch("/api/cancellations", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.reports)) {
+        setReports(data.reports);
+      } else {
+        setReports(getCancellationReports());
+      }
+    } catch (err: any) {
+      console.warn("API fetch error, falling back to local state:", err.message);
+      setReports(getCancellationReports());
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const prof = getStoredProfile();
+    if (!prof) {
+      setProfile(null);
+      return;
+    }
     const tt = getActiveTimetable(prof);
     setProfile(prof);
     setTimetable(tt);
-    setReports(getCancellationReports());
     setReportDate(getTodayDateStr());
+    fetchReports();
   }, []);
 
   // Auto-dismiss modal on Escape key
@@ -69,27 +95,78 @@ export default function CancellationsPage() {
     );
   }
 
-  const handleConfirm = (reportId: string) => {
-    const updated = confirmCancellationReport(reportId);
-    setReports(updated);
+  const canManageCancellations = profile.role === "admin" || profile.role === "class_admin";
+
+  const handleConfirm = async (reportId: string) => {
+    if (!canManageCancellations) return;
+    setConfirmingId(reportId);
+    setErrorBanner(null);
+    setSuccessBanner(null);
+
+    const token = getSessionToken();
+    try {
+      const res = await fetch("/api/cancellations/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ reportId }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccessBanner("Cancellation report confirmed. Classes marked as cancelled.");
+        await fetchReports();
+      } else {
+        setErrorBanner(data.error || "Failed to confirm cancellation report.");
+      }
+    } catch (err: any) {
+      setErrorBanner("Network error: Unable to confirm report. Please verify connection.");
+    } finally {
+      setConfirmingId(null);
+    }
   };
 
-  const handleCreateReport = () => {
+  const handleCreateReport = async () => {
+    if (!canManageCancellations) return;
     if (!reportDescription.trim()) return;
 
-    const newRep = submitCancellationReport({
-      studentId: profile.id,
-      studentName: profile.fullName,
-      date: reportDate,
-      period: reportPeriod ? Number(reportPeriod) : undefined,
-      subjectCode: reportSubjectCode === "ALL" ? undefined : reportSubjectCode,
-      reasonType: reportReasonType,
-      description: reportDescription.trim(),
-    });
+    setIsSubmitting(true);
+    setErrorBanner(null);
+    setSuccessBanner(null);
 
-    setReports(getCancellationReports());
-    setIsSubmitModalOpen(false);
-    setReportDescription("");
+    const token = getSessionToken();
+    try {
+      const res = await fetch("/api/cancellations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          date: reportDate,
+          period: reportPeriod ? Number(reportPeriod) : undefined,
+          subjectCode: reportSubjectCode === "ALL" ? undefined : reportSubjectCode,
+          reasonType: reportReasonType,
+          description: reportDescription.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success && data.report) {
+        setSuccessBanner("Cancellation report submitted and shared with class.");
+        setIsSubmitModalOpen(false);
+        setReportDescription("");
+        await fetchReports();
+      } else {
+        setErrorBanner(data.error || "Failed to submit cancellation report.");
+      }
+    } catch (err: any) {
+      setErrorBanner("Network error: Unable to submit report. Please check connection.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -106,12 +183,14 @@ export default function CancellationsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsSubmitModalOpen(true)}
-          className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-md shadow-amber-600/20 transition-all flex items-center gap-1.5 self-start sm:self-center"
-        >
-          <Plus className="w-4 h-4" /> Report Cancellation / Mass Bunk
-        </button>
+        {canManageCancellations && (
+          <button
+            onClick={() => setIsSubmitModalOpen(true)}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-md shadow-amber-600/20 transition-all flex items-center gap-1.5 self-start sm:self-center"
+          >
+            <Plus className="w-4 h-4" /> Report Cancellation / Mass Bunk
+          </button>
+        )}
       </div>
 
       {/* Rules Notice */}
@@ -120,9 +199,34 @@ export default function CancellationsPage() {
           <Info className="w-4 h-4 text-amber-600" /> Cancellation Protocol Rule:
         </div>
         <p>
-          A single student reporting a mass bunk or teacher absence does not immediately cancel classes for everyone. It enters a confirmation queue. Once peer confirmation or moderator approval occurs, affected periods automatically switch to CANCELLED state and will not hurt anyone&apos;s attendance percentage.
+          Cancellation reports are submitted and confirmed by Class Representatives (CRs) and Administrators. Confirmed cancellations are excluded from both numerator and denominator (+0/+0) and will not hurt anyone&apos;s attendance percentage.
         </p>
       </div>
+
+      {/* Feedback Banners */}
+      {errorBanner && (
+        <div className="p-4 bg-rose-50 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900/60 rounded-xl flex items-center justify-between text-xs text-rose-800 dark:text-rose-200">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+            <span>{errorBanner}</span>
+          </div>
+          <button onClick={() => setErrorBanner(null)} className="text-rose-600 dark:text-rose-400 font-bold hover:underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {successBanner && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900/60 rounded-xl flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-200">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>{successBanner}</span>
+          </div>
+          <button onClick={() => setSuccessBanner(null)} className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Active Reports List */}
       <div className="space-y-4">
@@ -131,7 +235,12 @@ export default function CancellationsPage() {
           Active Cancellation Reports ({profile.branchCode} {profile.section})
         </h2>
 
-        {reports.length === 0 ? (
+        {isLoading ? (
+          <div className="bg-white dark:bg-zinc-900 p-12 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-center text-zinc-400 flex items-center justify-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600"></div>
+            <span className="text-xs">Loading shared cancellation reports...</span>
+          </div>
+        ) : reports.length === 0 ? (
           <div className="bg-white dark:bg-zinc-900 p-12 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-center text-zinc-400">
             No cancellation reports submitted yet.
           </div>
@@ -198,12 +307,18 @@ export default function CancellationsPage() {
 
                 {/* Confirm Action Button */}
                 <div className="flex items-center gap-2 self-end sm:self-start">
-                  {r.status === "PENDING" && (
+                  {canManageCancellations && r.status === "PENDING" && (
                     <button
                       onClick={() => handleConfirm(r.id)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors border border-indigo-200 dark:border-indigo-800 flex items-center gap-1"
+                      disabled={confirmingId === r.id}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors border border-indigo-200 dark:border-indigo-800 flex items-center gap-1 disabled:opacity-50"
                     >
-                      <Users className="w-3.5 h-3.5" /> Confirm This Report
+                      {confirmingId === r.id ? (
+                        <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-indigo-600 mr-1" />
+                      ) : (
+                        <Users className="w-3.5 h-3.5" />
+                      )}
+                      Confirm This Report
                     </button>
                   )}
                 </div>
@@ -214,7 +329,7 @@ export default function CancellationsPage() {
       </div>
 
       {/* Submit Report Modal */}
-      {isSubmitModalOpen && (
+      {canManageCancellations && isSubmitModalOpen && (
         <div
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsSubmitModalOpen(false);
@@ -300,14 +415,16 @@ export default function CancellationsPage() {
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
               <button
                 onClick={() => setIsSubmitModalOpen(false)}
-                className="px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-100 rounded-lg"
+                className="px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 rounded-lg"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateReport}
-                className="px-4 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm"
+                disabled={isSubmitting || !reportDescription.trim()}
+                className="px-4 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-sm flex items-center gap-1.5 disabled:opacity-50"
               >
+                {isSubmitting && <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" />}
                 Submit Report
               </button>
             </div>
