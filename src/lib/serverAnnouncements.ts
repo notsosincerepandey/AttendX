@@ -19,6 +19,7 @@
 
 import { UserAccount, UserRole } from "@/types";
 import { getUserScope } from "./serverPolls";
+import { isSupabaseJwt } from "@/lib/serverAuthGuard";
 
 export interface ClassAnnouncement {
   id: string;
@@ -318,7 +319,8 @@ async function getSupabaseAnnouncementsClient(userToken?: string) {
 
   const { createClient } = await import("@supabase/supabase-js");
 
-  if (userToken) {
+  // Only forward userToken if it is an authentic 3-part Supabase JWT starting with "eyJ"
+  if (userToken && isSupabaseJwt(userToken)) {
     return createClient(url, anonKey || serviceKey || "", {
       auth: { persistSession: false, autoRefreshToken: false },
       global: {

@@ -278,7 +278,8 @@ export async function authenticateCredentials(
           passwordChangeConsumed,
         };
 
-        const sessionToken = createServerSessionToken(userObj);
+        // Prefer genuine Supabase Auth JWT access token; fallback to cryptographic HMAC token for offline sessions
+        const sessionToken = authResult.session?.access_token || createServerSessionToken(userObj);
 
         return {
           success: true,

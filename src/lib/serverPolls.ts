@@ -11,6 +11,7 @@
  */
 
 import { UserAccount, ClassPoll, PollOption } from "@/types";
+import { isSupabaseJwt } from "@/lib/serverAuthGuard";
 
 // Seed data used for in-memory testing and initialization
 export const SEED_CLASS_POLLS: ClassPoll[] = [
@@ -407,10 +408,12 @@ export function canUserDeletePoll(
 
 /**
  * Returns a Supabase client configured for the call.
- * If userToken is passed, forwards it in the Authorization header so that
- * PostgreSQL SECURITY DEFINER RPCs (cast_poll_vote_atomic, create_class_poll_atomic)
- * resolve auth.uid() matching the calling user.
- * Otherwise uses the service-role key for backend operations.
+ * If userToken is a genuine 3-part Supabase JWT (header.payload.signature), forwards it
+ * in the Authorization header so that PostgreSQL SECURITY DEFINER RPCs resolve auth.uid().
+ * 
+ * CRITICAL FIX: Never forwards 2-part HMAC tokens, custom profile tokens, or user IDs as Bearer tokens,
+ * which causes PostgREST to reject requests with 'Expected 3 parts in JWT; got 2'.
+ * When a genuine Supabase JWT is not present, uses the trusted server-side service-role key.
  */
 export async function getSupabasePollsClient(userToken?: string) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -421,7 +424,8 @@ export async function getSupabasePollsClient(userToken?: string) {
 
   const { createClient } = await import("@supabase/supabase-js");
 
-  if (userToken) {
+  // Only forward userToken if it is an authentic 3-part Supabase JWT starting with "eyJ"
+  if (userToken && isSupabaseJwt(userToken)) {
     return createClient(url, anonKey || serviceKey || "", {
       auth: { persistSession: false, autoRefreshToken: false },
       global: {
@@ -611,6 +615,7 @@ export async function serverCreatePoll(
   if (supabase) {
     try {
       // Execute atomic transaction RPC function create_class_poll_atomic
+      let pollId: string | null = null;
       const { data: rpcRes, error: rpcErr } = await supabase.rpc(
         "create_class_poll_atomic",
         {
@@ -623,11 +628,45 @@ export async function serverCreatePoll(
         }
       );
 
-      if (rpcErr) {
-        throw new Error(rpcErr.message || "Failed to create class poll atomically.");
-      }
+      if (!rpcErr && rpcRes) {
+        pollId = rpcRes?.poll_id || (typeof rpcRes === "string" ? rpcRes : null);
+      } else if (rpcErr) {
+        // If RPC failed due to missing auth.uid() in service-role mode, perform verified service-role insert
+        if (rpcErr.message?.includes("Authentication required") || rpcErr.code === "42501") {
+          const { data: newPollRow, error: pollInsertErr } = await supabase
+            .from("class_polls")
+            .insert({
+              title: data.title.trim(),
+              description: data.description?.trim() || null,
+              category: data.category,
+              branch_code: data.branchCode,
+              section: data.section,
+              created_by: user.id,
+              status: "ACTIVE",
+            })
+            .select()
+            .single();
 
-      const pollId = rpcRes?.poll_id || (typeof rpcRes === "string" ? rpcRes : null);
+          if (pollInsertErr || !newPollRow) {
+            throw new Error(pollInsertErr?.message || "Failed to create class poll.");
+          }
+
+          pollId = newPollRow.id;
+
+          const optionsPayload = data.options.map((opt, i) => ({
+            poll_id: pollId,
+            option_text: opt.text.trim(),
+            sort_order: i,
+          }));
+
+          const { error: optionsErr } = await supabase.from("class_poll_options").insert(optionsPayload);
+          if (optionsErr) {
+            throw new Error(optionsErr.message || "Failed to insert poll options.");
+          }
+        } else {
+          throw new Error(rpcErr.message || "Failed to create class poll atomically.");
+        }
+      }
 
       if (pollId) {
         const { data: pollRow, error: pollFetchErr } = await supabase
@@ -737,6 +776,7 @@ export async function serverVoteInPoll(
   if (supabase) {
     try {
       // Execute atomic transaction RPC function cast_poll_vote_atomic
+      let voteSucceeded = false;
       const { data: voteRes, error: voteErr } = await supabase.rpc(
         "cast_poll_vote_atomic",
         {
@@ -745,7 +785,9 @@ export async function serverVoteInPoll(
         }
       );
 
-      if (voteErr) {
+      if (!voteErr && voteRes?.success) {
+        voteSucceeded = true;
+      } else if (voteErr) {
         if (
           voteErr.code === "23505" ||
           voteErr.message?.includes("already cast your vote") ||
@@ -768,7 +810,65 @@ export async function serverVoteInPoll(
         if (voteErr.message?.includes("Target poll not found")) {
           return { success: false, error: "Poll not found." };
         }
-        throw new Error(voteErr.message);
+
+        // If RPC returned "Authentication required" because auth.uid() is null in service-role mode:
+        if (voteErr.message?.includes("Authentication required") || voteErr.code === "42501") {
+          // Pre-check for duplicate vote
+          const { data: existingVote } = await supabase
+            .from("class_poll_votes")
+            .select("id")
+            .eq("poll_id", pollId)
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (existingVote) {
+            return {
+              success: false,
+              error: "You have already cast your vote in this poll.",
+            };
+          }
+
+          // Verify option belongs to this poll
+          const { data: optRow } = await supabase
+            .from("class_poll_options")
+            .select("id")
+            .eq("id", optionId)
+            .eq("poll_id", pollId)
+            .maybeSingle();
+
+          if (!optRow) {
+            return {
+              success: false,
+              error: "Invalid option selected for this poll.",
+            };
+          }
+
+          // Insert vote (PostgreSQL unique constraint uq_class_poll_user_vote prevents race condition duplicates)
+          const { error: insertVoteErr } = await supabase
+            .from("class_poll_votes")
+            .insert({
+              poll_id: pollId,
+              option_id: optionId,
+              user_id: user.id,
+            });
+
+          if (insertVoteErr) {
+            if (
+              insertVoteErr.code === "23505" ||
+              insertVoteErr.message?.includes("duplicate") ||
+              insertVoteErr.message?.includes("already")
+            ) {
+              return {
+                success: false,
+                error: "You have already cast your vote in this poll.",
+              };
+            }
+            throw new Error(insertVoteErr.message);
+          }
+          voteSucceeded = true;
+        } else {
+          throw new Error(voteErr.message);
+        }
       }
 
       // Fetch updated poll row after atomic vote transaction

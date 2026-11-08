@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { UserAccount, UserRole } from "@/types";
 
+/**
+ * Verifies whether a token is a genuine 3-part Supabase JWT (header.payload.signature).
+ * Never confuses a 2-part HMAC session token, user ID UUID, or custom profile token with a Supabase JWT.
+ */
+export function isSupabaseJwt(token?: string | null): token is string {
+  if (!token || typeof token !== "string") return false;
+  const trimmed = token.trim();
+  const parts = trimmed.split(".");
+  return parts.length === 3 && parts.every((p) => p.length > 0) && trimmed.startsWith("eyJ");
+}
+
 export interface VerifiedSession {
   authenticated: boolean;
   user: UserAccount | null;
