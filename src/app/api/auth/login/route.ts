@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
 
     if (!identifier || !password) {
       return NextResponse.json(
-        { success: false, error: "Please enter your student roll number or email and password." },
+        { success: false, error: "Please enter your roll number or enrollment number and password." },
         { status: 400 }
       );
     }
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: false, error: result.error || "Invalid email or password." },
+      { success: false, error: result.error || "Invalid roll number or enrollment number, or password." },
       { status: 401 }
     );
   } catch (error: any) {

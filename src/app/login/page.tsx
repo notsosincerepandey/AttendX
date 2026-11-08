@@ -189,16 +189,10 @@ export default function LoginPage() {
               Log In
             </button>
             <button
-              onClick={() => {
-                setTab("register");
-                setErrorMsg("");
-                setSuccessMsg("");
-              }}
-              className={`py-2 rounded-lg transition-colors ${
-                tab === "register"
-                  ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-white shadow-xs"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900"
-              }`}
+              type="button"
+              disabled
+              title="New student sign up is currently disabled"
+              className="py-2 rounded-lg text-zinc-400 dark:text-zinc-500 bg-transparent cursor-not-allowed opacity-50 select-none font-bold"
             >
               New Student Sign Up
             </button>
@@ -296,14 +290,14 @@ export default function LoginPage() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
-                  Student Roll Number or Admin Email
+                  Roll Number or Enrollment Number
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
+                  <GraduationCap className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
                   <input
                     type="text"
                     required
-                    placeholder="e.g. 2026011001 or admin@mmmut.ac.in"
+                    placeholder="Enter your roll number or enrollment number"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-9 pr-3 py-2.5 text-xs bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"

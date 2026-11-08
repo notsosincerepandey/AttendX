@@ -22,55 +22,7 @@ function getDevSeedPassword(role: UserRole): string | undefined {
   return process.env.STUDENT_DEV_PASSWORD || process.env.DEV_SEED_PASSWORD;
 }
 
-const SEED_ACCOUNTS: ServerUserRecord[] = [
-  {
-    id: "c70936b3-ffe8-4baa-908d-f92fbd62ca9a",
-    fullName: "Shubh Pandey",
-    email: "admin@mmmut.ac.in",
-    role: "admin",
-    degree: "B.Tech",
-    branch: "Information Technology",
-    branchCode: "IT",
-    section: "SEC-B",
-    batch: "P1",
-    semester: "Semester I",
-    academicSession: "2025-26",
-    attendanceThreshold: 75.0,
-    activeTimetableId: "mmmut-btech-it-b-2025",
-  },
-  {
-    id: "class-admin-aryan-003",
-    fullName: "Aryan Singh (CR)",
-    email: "cr.it@mmmut.ac.in",
-    role: "class_admin",
-    degree: "B.Tech",
-    branch: "Information Technology",
-    branchCode: "IT",
-    section: "SEC-B",
-    batch: "P1",
-    semester: "Semester I",
-    academicSession: "2025-26",
-    attendanceThreshold: 75.0,
-    activeTimetableId: "mmmut-btech-it-b-2025",
-    managedBranchCode: "IT",
-    managedSection: "SEC-B",
-  },
-  {
-    id: "temp-student-002",
-    fullName: "Guest Student",
-    email: "student@mmmut.ac.in",
-    role: "student",
-    degree: "B.Tech",
-    branch: "Computer Science & Engineering",
-    branchCode: "CSE",
-    section: "SEC-A",
-    batch: "P1",
-    semester: "Semester I",
-    academicSession: "2025-26",
-    attendanceThreshold: 75.0,
-    activeTimetableId: "mmmut-btech-cse-a-2025",
-  },
-];
+const SEED_ACCOUNTS: ServerUserRecord[] = [];
 
 const serverUsersStore: Map<string, ServerUserRecord> = new Map();
 
@@ -214,8 +166,10 @@ export async function authenticateCredentials(
   passwordChangeConsumed?: boolean;
 }> {
   const trimmed = identifier.trim();
-  const isRoll = !trimmed.includes("@");
-  const targetEmail = rollNumberToEmailAlias(trimmed);
+  let targetEmail = "";
+  let resolvedRoll: string | undefined = undefined;
+  let resolvedEnrollment: string | undefined = undefined;
+  let resolvedProfile: any = null;
 
   // In production mode, strictly require Supabase Auth credentials and prohibit local fallback
   if (
@@ -229,7 +183,42 @@ export async function authenticateCredentials(
     };
   }
 
-  // 1. Supabase Auth authoritative sign in if cloud credentials exist
+  // 1. Authoritative resolution of Roll Number or Enrollment Number via Supabase
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const adminClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+
+      // Secure query matching either roll_number or enrollment_number
+      const { data: matchedProfile } = await adminClient
+        .from("student_profiles")
+        .select("*")
+        .or(`roll_number.eq.${trimmed},enrollment_number.ilike.${trimmed}`)
+        .maybeSingle();
+
+      if (matchedProfile) {
+        resolvedProfile = matchedProfile;
+        resolvedRoll = matchedProfile.roll_number;
+        resolvedEnrollment = matchedProfile.enrollment_number;
+        targetEmail =
+          matchedProfile.email ||
+          (matchedProfile.roll_number
+            ? `student.${matchedProfile.roll_number}@attendx.mmmut.ac.in`
+            : "");
+      }
+    } catch (lookupErr) {
+      console.warn("Identifier lookup error:", lookupErr);
+    }
+  }
+
+  if (!targetEmail) {
+    targetEmail = rollNumberToEmailAlias(trimmed);
+  }
+
+  // 2. Supabase Auth authoritative sign in if cloud credentials exist
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     try {
       const { createClient } = await import("@supabase/supabase-js");
@@ -244,23 +233,27 @@ export async function authenticateCredentials(
       });
 
       if (!authError && authResult.user && authResult.session) {
-        // Query linked student profile
-        let profile: any = null;
-        try {
-          const { data } = await supabase
-            .from("student_profiles")
-            .select("*")
-            .eq("user_id", authResult.user.id)
-            .maybeSingle();
-          profile = data;
-        } catch {
-          // ignore lookup error
+        // Query linked student profile if not already fetched
+        let profile: any = resolvedProfile;
+        if (!profile) {
+          try {
+            const { data } = await supabase
+              .from("student_profiles")
+              .select("*")
+              .eq("user_id", authResult.user.id)
+              .maybeSingle();
+            profile = data;
+          } catch {
+            // ignore lookup error
+          }
         }
 
         const appMeta = authResult.user.app_metadata || {};
         const role = (appMeta.role as UserRole) || (profile?.role as UserRole) || "student";
         const rollNumber =
-          profile?.roll_number || appMeta.roll_number || (isRoll ? trimmed : undefined);
+          resolvedRoll || profile?.roll_number || appMeta.roll_number || trimmed;
+        const enrollmentNumber =
+          resolvedEnrollment || profile?.enrollment_number || appMeta.enrollment_number;
 
         const requiresPasswordChange =
           appMeta.requires_password_change ??
@@ -272,20 +265,15 @@ export async function authenticateCredentials(
           profile?.password_change_consumed ??
           false;
 
-        // Mask internal alias for students so it is never displayed as the login ID
-        const displayEmail =
-          role === "student" && rollNumber
-            ? rollNumber
-            : isRoll
-            ? rollNumber
-            : targetEmail;
+        // Mask internal alias for students completely so internal alias is never exposed or asked for
+        const displayIdentifier = rollNumber || enrollmentNumber || trimmed;
 
         const userObj: UserAccount = {
           id: profile?.id || authResult.user.id,
           fullName: profile?.full_name || authResult.user.user_metadata?.full_name || "User",
-          email: displayEmail,
+          email: displayIdentifier,
           rollNumber,
-          enrollmentNumber: profile?.enrollment_number || appMeta.enrollment_number,
+          enrollmentNumber,
           fatherName: profile?.father_name || appMeta.father_name,
           role,
           degree: "B.Tech",
@@ -320,19 +308,18 @@ export async function authenticateCredentials(
     }
   }
 
-  // 2. Server Vault check (Only accessible in development mode)
+  // 3. Server Vault check (Only accessible in development mode)
   const matched =
     serverUsersStore.get(targetEmail) ||
-    (isRoll ? Array.from(serverUsersStore.values()).find((u) => u.rollNumber === trimmed) : undefined);
+    (Array.from(serverUsersStore.values()).find((u) => u.rollNumber === trimmed || u.enrollmentNumber === trimmed));
 
   if (matched) {
     const devPass = getDevSeedPassword(matched.role);
     const isValid = (devPass && devPass === pass) || matched.rawPassword === pass || matched.password === pass;
     if (isValid) {
       const safe = sanitizeUser(matched);
-      // Mask internal alias for students so internal alias is never exposed to frontend
-      if (safe.role === "student" && (safe.rollNumber || isRoll)) {
-        safe.email = safe.rollNumber || trimmed;
+      if (safe.role === "student" && (safe.rollNumber || safe.enrollmentNumber)) {
+        safe.email = safe.rollNumber || safe.enrollmentNumber || trimmed;
       }
       const token = createServerSessionToken(safe);
       return {
@@ -343,10 +330,10 @@ export async function authenticateCredentials(
         passwordChangeConsumed: matched.passwordChangeConsumed ?? false,
       };
     }
-    return { success: false, error: "Invalid credentials. Please verify your roll number/email and password." };
+    return { success: false, error: "Invalid credentials. Please verify your roll number or enrollment number and password." };
   }
 
-  return { success: false, error: "Invalid credentials. Please verify your roll number/email and password." };
+  return { success: false, error: "Invalid credentials. Please verify your roll number or enrollment number and password." };
 }
 
 /**
@@ -367,7 +354,8 @@ export async function rotateUserPassword(
   }
 
   const normalizedIdentifier = identifierOrEmail.trim();
-  const targetEmail = rollNumberToEmailAlias(normalizedIdentifier);
+  let targetEmail = rollNumberToEmailAlias(normalizedIdentifier);
+  let resolvedUserId: string | undefined = undefined;
 
   // If Supabase is configured, update Supabase Auth via Admin Service Role
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -378,14 +366,50 @@ export async function rotateUserPassword(
         process.env.SUPABASE_SERVICE_ROLE_KEY
       );
 
-      // Find user in auth.users
-      const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-      const authUser = listData?.users?.find(
-        (u) =>
-          u.email?.toLowerCase() === targetEmail.toLowerCase() ||
-          u.id === normalizedIdentifier ||
-          u.app_metadata?.roll_number === normalizedIdentifier
-      );
+      // Match profile by roll_number, enrollment_number, or user_id
+      try {
+        const { data: matchedProfile } = await supabaseAdmin
+          .from("student_profiles")
+          .select("user_id, email, roll_number, enrollment_number")
+          .or(`roll_number.eq.${normalizedIdentifier},enrollment_number.ilike.${normalizedIdentifier},user_id.eq.${normalizedIdentifier}`)
+          .maybeSingle();
+
+        if (matchedProfile) {
+          resolvedUserId = matchedProfile.user_id;
+          targetEmail =
+            matchedProfile.email ||
+            (matchedProfile.roll_number
+              ? `student.${matchedProfile.roll_number}@attendx.mmmut.ac.in`
+              : targetEmail);
+        }
+      } catch {
+        // ignore profile lookup error
+      }
+
+      let authUser: any = null;
+      if (resolvedUserId) {
+        try {
+          const { data: directUser } = await supabaseAdmin.auth.admin.getUserById(resolvedUserId);
+          authUser = directUser?.user;
+        } catch {
+          // ignore error
+        }
+      }
+
+      if (!authUser) {
+        let page = 1;
+        while (!authUser && page <= 5) {
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+          authUser = listData?.users?.find(
+            (u) =>
+              u.email?.toLowerCase() === targetEmail.toLowerCase() ||
+              u.id === normalizedIdentifier ||
+              u.app_metadata?.roll_number === normalizedIdentifier
+          );
+          if (authUser || !listData?.users || listData.users.length < 1000) break;
+          page++;
+        }
+      }
 
       if (!authUser) {
         const matchedFallback = serverUsersStore.get(targetEmail);

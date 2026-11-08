@@ -2,57 +2,7 @@
 
 import { UserAccount } from "@/types";
 
-// Public sanitized profile models (Passwords are kept exclusively on the server)
-export const ADMIN_USER: UserAccount = {
-  id: "c70936b3-ffe8-4baa-908d-f92fbd62ca9a",
-  fullName: "Shubh Pandey",
-  email: "admin@mmmut.ac.in",
-  role: "admin",
-  degree: "B.Tech",
-  branch: "Information Technology",
-  branchCode: "IT",
-  section: "SEC-B",
-  batch: "P1",
-  semester: "Semester I",
-  academicSession: "2025-26",
-  attendanceThreshold: 75.0,
-  activeTimetableId: "mmmut-btech-it-b-2025",
-};
-
-export const TEMP_STUDENT_USER: UserAccount = {
-  id: "temp-student-002",
-  fullName: "Guest Student",
-  email: "student@mmmut.ac.in",
-  role: "student",
-  degree: "B.Tech",
-  branch: "Computer Science & Engineering",
-  branchCode: "CSE",
-  section: "SEC-A",
-  batch: "P1",
-  semester: "Semester I",
-  academicSession: "2025-26",
-  attendanceThreshold: 75.0,
-  activeTimetableId: "mmmut-btech-cse-a-2025",
-};
-
-export const CLASS_ADMIN_USER: UserAccount = {
-  id: "class-admin-aryan-003",
-  fullName: "Aryan Singh (CR)",
-  email: "cr.it@mmmut.ac.in",
-  role: "class_admin",
-  degree: "B.Tech",
-  branch: "Information Technology",
-  branchCode: "IT",
-  section: "SEC-B",
-  batch: "P1",
-  semester: "Semester I",
-  academicSession: "2025-26",
-  attendanceThreshold: 75.0,
-  activeTimetableId: "mmmut-btech-it-b-2025",
-  managedBranchCode: "IT",
-  managedSection: "SEC-B",
-};
-
+// Public sanitized profile storage keys
 const AUTH_STORAGE_KEYS = {
   CURRENT_USER: "attendx_auth_current_user_v2",
   REGISTERED_USERS: "attendx_auth_registered_users_v2",
@@ -74,20 +24,16 @@ export function setSessionToken(token: string | null): void {
 }
 
 export function getRegisteredUsers(): UserAccount[] {
-  if (typeof window === "undefined") return [ADMIN_USER];
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEYS.REGISTERED_USERS);
     if (raw) {
-      const parsed: UserAccount[] = JSON.parse(raw);
-      const hasAdmin = parsed.some((u) => u.email === ADMIN_USER.email);
-      const updated = parsed.filter((u) => u.email === ADMIN_USER.email);
-      if (!hasAdmin) updated.push(ADMIN_USER);
-      return updated;
+      return JSON.parse(raw);
     }
   } catch (e) {
     console.error("Error reading registered users", e);
   }
-  return [ADMIN_USER];
+  return [];
 }
 
 export function saveRegisteredUsers(users: UserAccount[]): void {
@@ -125,7 +71,7 @@ export function setCurrentUser(user: UserAccount | null): void {
 
 /**
  * Authenticates user through secure server endpoint /api/auth/login
- * Accepts roll number (e.g. 2026011001) or university email (e.g. admin@mmmut.ac.in).
+ * Accepts roll number (e.g. 2026011001) or enrollment number (e.g. 2026CED0377).
  */
 export async function loginUser(
   identifier: string,
@@ -155,7 +101,7 @@ export async function loginUser(
         ),
       };
     }
-    return { success: false, error: data.error || "Invalid roll number/email or password." };
+    return { success: false, error: data.error || "Invalid roll number or enrollment number, or password." };
   } catch (err: any) {
     console.error("Login request error:", err);
     return { success: false, error: "Network error. Unable to connect to authentication server." };
