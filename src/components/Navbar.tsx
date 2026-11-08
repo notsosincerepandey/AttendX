@@ -228,8 +228,17 @@ export default function Navbar() {
               </div>
             </div>
           </Link>
-          <div className="text-xs text-zinc-500 font-medium">
-            Student Attendance Portal
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-zinc-500 font-medium hidden sm:inline">
+              Student Attendance Portal
+            </span>
+            <Link
+              href="/admin/login"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:text-white bg-zinc-100 dark:bg-zinc-800 hover:bg-indigo-600 dark:hover:bg-indigo-600 transition-colors border border-zinc-200 dark:border-zinc-700"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Admin Portal</span>
+            </Link>
           </div>
         </div>
       </header>

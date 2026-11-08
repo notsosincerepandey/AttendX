@@ -173,12 +173,17 @@ export async function registerNewUser(
   }
 }
 
-export function logoutUser(): void {
+export function logoutUser(redirectTo?: string | unknown): void {
+  const target = typeof redirectTo === "string" ? redirectTo : "/login";
   setCurrentUser(null);
   setSessionToken(null);
   if (typeof window !== "undefined") {
-    window.location.href = "/login";
+    window.location.href = target;
   }
+}
+
+export function logoutAdmin(): void {
+  logoutUser("/admin/login");
 }
 
 export function promoteToClassAdmin(userId: string, branchCode: string, section: string): UserAccount[] {

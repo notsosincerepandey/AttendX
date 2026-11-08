@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { loginUser, registerNewUser, rotatePassword } from "@/lib/auth";
 import { UNIVERSITY_DATABASE } from "@/data/extractedTimetables";
 import {
@@ -14,6 +15,7 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
+  ShieldAlert,
   KeyRound,
 } from "lucide-react";
 
@@ -479,6 +481,17 @@ export default function LoginPage() {
               </button>
             </form>
           )}
+        </div>
+
+        {/* Dedicated Admin Portal Link */}
+        <div className="text-center pt-2">
+          <Link
+            href="/admin/login"
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors font-medium"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Are you an Administrator? <strong>Go to Admin Portal</strong></span>
+          </Link>
         </div>
       </div>
     </div>

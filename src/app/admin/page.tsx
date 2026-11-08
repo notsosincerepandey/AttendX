@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   UNIVERSITY_DATABASE,
   UniversityTimetable,
@@ -13,6 +14,14 @@ import { getCurrentUser, getSessionToken } from "@/lib/auth";
 import { UserAccount, StudentDirectoryItem, PublishedTimetableVersion } from "@/types";
 import { inspectTimetableConsistency } from "@/lib/serverAdmin";
 import Link from "next/link";
+import AdminSidebar, { AdminTab } from "@/components/admin/AdminSidebar";
+import AdminTopBar from "@/components/admin/AdminTopBar";
+import AdminOverviewView from "@/components/admin/AdminOverviewView";
+import AdminCRsView from "@/components/admin/AdminCRsView";
+import AdminAnnouncementsView from "@/components/admin/AdminAnnouncementsView";
+import AdminPollsView from "@/components/admin/AdminPollsView";
+import AdminCancellationsView from "@/components/admin/AdminCancellationsView";
+import AdminSettingsView from "@/components/admin/AdminSettingsView";
 import {
   ShieldAlert,
   Upload,
@@ -40,6 +49,7 @@ import {
   Calendar,
   Check,
   BookOpen,
+  KeyRound,
 } from "lucide-react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -56,9 +66,31 @@ const PERIODS = [
 ];
 
 export default function AdminPanelPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [adminTab, setAdminTab] = useState<"students" | "timetables">("students");
+  const [currentTab, setCurrentTab] = useState<AdminTab>("overview");
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Live aggregated stats
+  const [stats, setStats] = useState({
+    totalStudents: 1189,
+    totalCRs: 0,
+    totalAnnouncements: 0,
+    totalPolls: 0,
+    activePolls: 0,
+    totalCancellations: 0,
+    pendingCancellations: 0,
+    totalTimetables: UNIVERSITY_DATABASE.timetables.length,
+  });
+
+  // Password reset modal state for admin
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetTargetStudent, setResetTargetStudent] = useState<StudentDirectoryItem | null>(null);
+  const [resetTempPassword, setResetTempPassword] = useState("");
+  const [resetIsSubmitting, setResetIsSubmitting] = useState(false);
+  const [resetGeneratedPass, setResetGeneratedPass] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   // --- Student Directory State ---
   const [students, setStudents] = useState<StudentDirectoryItem[]>([]);
@@ -173,20 +205,113 @@ export default function AdminPanelPage() {
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      const token = getSessionToken();
+      const res = await fetch("/api/admin/stats", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.stats) {
+        setStats(data.stats);
+      }
+    } catch (e) {
+      console.warn("Failed to load admin stats:", e);
+    }
+  };
+
+  const handleOpenResetModal = (student: StudentDirectoryItem) => {
+    setResetTargetStudent(student);
+    setResetTempPassword("");
+    setResetGeneratedPass(null);
+    setResetError(null);
+    setIsResetModalOpen(true);
+  };
+
+  const handleExecuteResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetTargetStudent) return;
+    setResetIsSubmitting(true);
+    setResetError(null);
+    try {
+      const token = getSessionToken();
+      const res = await fetch("/api/admin/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          targetStudentIdentifier: resetTargetStudent.rollNumber || resetTargetStudent.email,
+          temporaryPassword: resetTempPassword.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setResetGeneratedPass(data.temporaryPassword);
+        setAdminActionToast(`Password reset issued for ${resetTargetStudent.fullName}`);
+      } else {
+        setResetError(data.error || "Failed to reset password.");
+      }
+    } catch {
+      setResetError("Network error issuing password reset.");
+    } finally {
+      setResetIsSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     const user = getCurrentUser();
+    const token = getSessionToken();
+
+    if (!user || !token) {
+      router.replace("/admin/login");
+      return;
+    }
+
+    if (user.role !== "admin") {
+      router.replace("/");
+      return;
+    }
+
     setCurrentUser(user);
 
     // Read initial tab from URL if present
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("tab") === "timetables") {
-        setAdminTab("timetables");
+      const urlTab = urlParams.get("tab") as AdminTab;
+      if (
+        urlTab &&
+        [
+          "overview",
+          "students",
+          "crs",
+          "timetables",
+          "announcements",
+          "polls",
+          "cancellations",
+          "settings",
+        ].includes(urlTab)
+      ) {
+        setCurrentTab(urlTab);
       }
     }
 
     setIsLoaded(true);
-  }, []);
+
+    // Verify session authoritatively on server
+    fetch("/api/admin/auth/verify", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (!res.ok) {
+          router.replace("/admin/login");
+        }
+      })
+      .catch(() => {});
+
+    fetchStats();
+  }, [router]);
 
   useEffect(() => {
     if (isLoaded && currentUser?.role === "admin") {
@@ -459,8 +584,9 @@ export default function AdminPanelPage() {
 
   if (!isLoaded) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 text-white space-y-3">
+        <div className="animate-spin rounded-full h-9 w-9 border-2 border-indigo-500/30 border-t-indigo-500" />
+        <div className="text-xs text-zinc-400 font-medium">Verifying administrator credentials...</div>
       </div>
     );
   }
@@ -468,23 +594,25 @@ export default function AdminPanelPage() {
   // Strict Server-Role Guard: Exactly ONE Admin
   if (!currentUser || currentUser.role !== "admin") {
     return (
-      <div className="max-w-xl mx-auto my-12 p-8 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-xl text-center space-y-4">
-        <div className="w-14 h-14 bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
-          <Lock className="w-7 h-7" />
-        </div>
-        <h2 className="text-xl font-black text-zinc-900 dark:text-white">
-          Access Restricted: Administrator Privileges Required
-        </h2>
-        <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-md mx-auto">
-          The central student directory, Class CR appointments, and master timetable publication are restricted to the primary AttendX administrator account (<span className="font-mono font-bold text-indigo-600">admin@attendx.ac.in</span>).
-        </p>
-        <div className="pt-2">
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/25 transition-all"
-          >
-            Switch to Administrator Account <ArrowRight className="w-4 h-4" />
-          </Link>
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+        <div className="max-w-md w-full p-8 bg-zinc-900 rounded-3xl border border-zinc-800 shadow-2xl text-center space-y-4">
+          <div className="w-14 h-14 bg-rose-950/60 text-rose-400 border border-rose-800/80 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+            <Lock className="w-7 h-7" />
+          </div>
+          <h2 className="text-lg font-black text-white">
+            Access Restricted: Administrator Privileges Required
+          </h2>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            The Admin Portal is restricted strictly to the verified AttendX administrator (<span className="font-mono font-bold text-indigo-400">admin@attendx.ac.in</span>).
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/admin/login"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/30 transition-all"
+            >
+              Go to Administrator Login <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -510,84 +638,91 @@ export default function AdminPanelPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-zinc-900 via-slate-900 to-indigo-950 p-6 sm:p-8 rounded-3xl text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-400/30 uppercase tracking-wider">
-              Sole Administrator & System Owner
-            </span>
-            <span className="text-xs text-zinc-400">
-              admin@attendx.ac.in
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-2.5">
-            <ShieldAlert className="w-7 h-7 text-indigo-400" />
-            AttendX Central Administration Portal
-          </h1>
-          <p className="text-xs text-zinc-300 max-w-2xl mt-1 leading-relaxed">
-            Manage live student registrations, verify Class Representative (CR) appointments with scope validation, and review or publish isolated university timetables across MMMUT batches.
-          </p>
-        </div>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex selection:bg-indigo-500 selection:text-white">
+      {/* Dedicated Admin Sidebar */}
+      <AdminSidebar
+        currentTab={currentTab}
+        onTabChange={setCurrentTab}
+        currentUser={currentUser}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        stats={{
+          totalStudents: stats.totalStudents,
+          totalCRs: stats.totalCRs,
+          activePolls: stats.activePolls,
+          pendingCancellations: stats.pendingCancellations,
+        }}
+      />
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 text-right">
-            <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">System Role</div>
-            <div className="text-xs font-black text-amber-300">University Administrator</div>
-          </div>
-        </div>
-      </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <AdminTopBar
+          currentTab={currentTab}
+          onOpenMobile={() => setIsMobileSidebarOpen(true)}
+          onRefresh={() => {
+            fetchStats();
+            if (currentTab === "students") fetchStudents();
+          }}
+          isRefreshing={isStudentsLoading}
+          currentUser={currentUser}
+        />
 
-      {adminActionToast && (
-        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-2 animate-in fade-in">
-          <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
-          {adminActionToast}
-        </div>
-      )}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+          {adminActionToast && (
+            <div className="p-4 bg-emerald-950/80 border border-emerald-800 rounded-2xl text-xs font-bold text-emerald-300 flex items-center justify-between gap-2 shadow-lg animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+                <span>{adminActionToast}</span>
+              </div>
+              <button onClick={() => setAdminActionToast(null)} className="text-emerald-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
-      {publishSuccessBanner && (
-        <div className="p-4 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-2xl text-xs font-bold text-indigo-800 dark:text-indigo-300 flex items-center gap-2 animate-in fade-in">
-          <Sparkles className="w-5 h-5 text-indigo-600 shrink-0" />
-          {publishSuccessBanner}
-        </div>
-      )}
+          {publishSuccessBanner && (
+            <div className="p-4 bg-indigo-950/80 border border-indigo-800 rounded-2xl text-xs font-bold text-indigo-300 flex items-center gap-2 animate-in fade-in">
+              <Sparkles className="w-5 h-5 text-indigo-400 shrink-0" />
+              {publishSuccessBanner}
+            </div>
+          )}
 
-      {/* Main Admin Tabs */}
-      <div className="flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-2">
-        <button
-          onClick={() => setAdminTab("students")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            adminTab === "students"
-              ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
-              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          Student Directory & CR Appointments ({totalStudents})
-        </button>
+          {currentTab === "overview" && (
+            <AdminOverviewView
+              stats={stats}
+              onNavigate={setCurrentTab}
+              currentUser={currentUser}
+            />
+          )}
 
-        <button
-          onClick={() => setAdminTab("timetables")}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            adminTab === "timetables"
-              ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
-              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          Timetable Management Centre (20 Sheets)
-        </button>
-      </div>
+          {currentTab === "crs" && (
+            <AdminCRsView
+              onOpenAppointModal={(student) => {
+                if (student) openAppointModal(student);
+                else if (students.length > 0) openAppointModal(students[0]);
+                else setCurrentTab("students");
+              }}
+              onOpenRevokeModal={(cr) => openRevokeModal(cr)}
+              onRefreshStats={fetchStats}
+            />
+          )}
 
-      {adminTab === "students" ? (
-        /* ========================================================================= */
-        /* TAB 1: COMPLETE STUDENT DIRECTORY & CR MANAGEMENT                         */
-        /* ========================================================================= */
-        <div className="space-y-5">
-          {/* Controls & Filter Bar */}
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-xs space-y-4">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {currentTab === "announcements" && <AdminAnnouncementsView />}
+
+          {currentTab === "polls" && <AdminPollsView />}
+
+          {currentTab === "cancellations" && <AdminCancellationsView />}
+
+          {currentTab === "settings" && <AdminSettingsView currentUser={currentUser} />}
+
+          {currentTab === "students" && (
+            /* ========================================================================= */
+            /* TAB 1: COMPLETE STUDENT DIRECTORY & CR MANAGEMENT                         */
+            /* ========================================================================= */
+            <div className="space-y-5">
+              {/* Controls & Filter Bar */}
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-xs space-y-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="relative flex-1 max-w-md">
                 <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-3" />
                 <input
@@ -899,19 +1034,37 @@ export default function AdminPanelPage() {
                                 System Owner
                               </span>
                             ) : isCR ? (
-                              <button
-                                onClick={() => openRevokeModal(student)}
-                                className="px-3 py-1 rounded-lg text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 transition-colors inline-flex items-center gap-1"
-                              >
-                                <UserMinus className="w-3.5 h-3.5" /> Revoke CR
-                              </button>
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  onClick={() => openRevokeModal(student)}
+                                  className="px-3 py-1 rounded-lg text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60 transition-colors inline-flex items-center gap-1"
+                                >
+                                  <UserMinus className="w-3.5 h-3.5" /> Revoke CR
+                                </button>
+                                <button
+                                  onClick={() => handleOpenResetModal(student)}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors inline-flex items-center gap-1"
+                                  title="Issue Temporary Student Reset Password"
+                                >
+                                  <KeyRound className="w-3.5 h-3.5" /> Reset
+                                </button>
+                              </div>
                             ) : (
-                              <button
-                                onClick={() => openAppointModal(student)}
-                                className="px-3 py-1 rounded-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 shadow-xs transition-colors inline-flex items-center gap-1"
-                              >
-                                <UserCheck className="w-3.5 h-3.5" /> Appoint CR
-                              </button>
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  onClick={() => openAppointModal(student)}
+                                  className="px-3 py-1 rounded-lg text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 shadow-xs transition-colors inline-flex items-center gap-1"
+                                >
+                                  <UserCheck className="w-3.5 h-3.5" /> Appoint CR
+                                </button>
+                                <button
+                                  onClick={() => handleOpenResetModal(student)}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors inline-flex items-center gap-1"
+                                  title="Issue Temporary Student Reset Password"
+                                >
+                                  <KeyRound className="w-3.5 h-3.5" /> Reset
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -947,10 +1100,12 @@ export default function AdminPanelPage() {
             </div>
           </div>
         </div>
-      ) : (
-        /* ========================================================================= */
-        /* TAB 2: TIMETABLE MANAGEMENT CENTRE                                        */
-        /* ========================================================================= */
+      )}
+
+      {currentTab === "timetables" && (
+            /* ========================================================================= */
+            /* TAB 2: TIMETABLE MANAGEMENT CENTRE                                        */
+            /* ========================================================================= */
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Column: 20 Timetables List */}
           <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-xs space-y-3">
@@ -1339,6 +1494,8 @@ export default function AdminPanelPage() {
           </div>
         </div>
       )}
+        </main>
+      </div>
 
       {/* ========================================================================= */}
       {/* MODAL 1: APPOINT CLASS REPRESENTATIVE (CR)                                 */}
@@ -1818,6 +1975,110 @@ export default function AdminPanelPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 5: ADMIN STUDENT PASSWORD RESET                                      */}
+      {/* ========================================================================= */}
+      {isResetModalOpen && resetTargetStudent && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsResetModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4"
+        >
+          <div className="bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-800 max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-600/20 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Reset Student Password</h3>
+                  <p className="text-[11px] text-zinc-400">Issue temporary credential</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsResetModalOpen(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-zinc-800/60 rounded-xl border border-zinc-700/60 space-y-1 text-xs">
+              <div className="text-zinc-400 font-semibold text-[11px]">Target Account</div>
+              <div className="font-bold text-white">{resetTargetStudent.fullName}</div>
+              <div className="font-mono text-[11px] text-indigo-400">
+                Roll: {resetTargetStudent.rollNumber || "—"} &bull; {resetTargetStudent.email}
+              </div>
+            </div>
+
+            {resetError && (
+              <div className="p-3 bg-rose-950/60 border border-rose-800/80 rounded-xl text-xs font-semibold text-rose-300 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{resetError}</span>
+              </div>
+            )}
+
+            {resetGeneratedPass ? (
+              <div className="p-4 bg-emerald-950/60 border border-emerald-800/80 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-300">
+                  <CheckCircle className="w-4 h-4 text-emerald-400" />
+                  <span>Temporary Password Issued Successfully</span>
+                </div>
+                <div className="p-3 bg-zinc-950 rounded-xl font-mono text-center text-sm font-bold text-white border border-emerald-500/30 select-all">
+                  {resetGeneratedPass}
+                </div>
+                <p className="text-[10px] text-zinc-400 leading-relaxed">
+                  Provide this credential to the student. They will be required to choose a new password upon their first login.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsResetModalOpen(false)}
+                  className="w-full mt-2 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleExecuteResetPassword} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-zinc-300 font-bold mb-1">
+                    Custom Temporary Password (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Leave blank to auto-generate random credential"
+                    value={resetTempPassword}
+                    onChange={(e) => setResetTempPassword(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <p className="text-[10px] text-zinc-500 mt-1">
+                    If blank, a cryptographically secure random password will be created.
+                  </p>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsResetModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={resetIsSubmitting}
+                    className="px-4 py-2 rounded-xl text-white bg-amber-600 hover:bg-amber-500 font-bold shadow-md shadow-amber-600/30 flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {resetIsSubmitting ? "Issuing Reset..." : "Reset Student Password"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
