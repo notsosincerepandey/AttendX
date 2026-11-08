@@ -66,7 +66,7 @@ export default function StudentProfileModal({
       fullName: fullName.trim() || currentProfile.fullName,
       email: email.trim() || currentProfile.email,
       degree: isAdmin ? selectedTimetable.degree : currentProfile.degree,
-      branch: isAdmin ? selectedTimetable.branch : currentProfile.branch,
+      branch: isAdmin ? selectedTimetable.branch : (selectedTimetable?.branch || currentProfile.branch),
       branchCode: isAdmin ? selectedTimetable.branchCode : currentProfile.branchCode,
       section: isAdmin ? selectedTimetable.section : currentProfile.section,
       batch: isAdmin
@@ -75,7 +75,7 @@ export default function StudentProfileModal({
       academicSession: isAdmin ? selectedTimetable.session : currentProfile.academicSession,
       semester: isAdmin ? selectedTimetable.semester : currentProfile.semester,
       attendanceThreshold: Number(threshold) || 75.0,
-      activeTimetableId: isAdmin ? selectedTimetable.id : currentProfile.activeTimetableId,
+      activeTimetableId: selectedTimetable?.id || currentProfile.activeTimetableId,
       isPersonalized: false,
     };
 

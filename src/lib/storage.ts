@@ -12,7 +12,12 @@ import {
   ClassPoll,
   PollOption,
 } from "@/types";
-import { UNIVERSITY_DATABASE } from "@/data/extractedTimetables";
+import {
+  UNIVERSITY_DATABASE,
+  getBranchFullName,
+  normalizeSection,
+  findTimetableForStudent,
+} from "@/data/extractedTimetables";
 import { getCurrentUser, setCurrentUser, getRegisteredUsers, saveRegisteredUsers } from "@/lib/auth";
 import { canUserVoteInPoll, canUserClosePoll, canUserCreatePoll } from "@/lib/serverPolls";
 
@@ -28,7 +33,29 @@ export function getTodayDateStr(): string {
 export function getStoredProfile(): StudentProfile | null {
   const currentUser = getCurrentUser();
   if (currentUser) {
-    return currentUser as StudentProfile;
+    const prof = currentUser as StudentProfile;
+    // Self-heal stale branch name or invalid activeTimetableId for non-admin accounts
+    if (prof.branchCode && prof.role !== "admin") {
+      let changed = false;
+      const canonicalBranchName = getBranchFullName(prof.branchCode);
+      if (canonicalBranchName && prof.branch !== canonicalBranchName) {
+        prof.branch = canonicalBranchName;
+        changed = true;
+      }
+      const canonicalTimetable = findTimetableForStudent({
+        branchCode: prof.branchCode,
+        section: prof.section,
+        timetableId: prof.activeTimetableId,
+      });
+      if (canonicalTimetable && prof.activeTimetableId !== canonicalTimetable.id) {
+        prof.activeTimetableId = canonicalTimetable.id;
+        changed = true;
+      }
+      if (changed) {
+        setCurrentUser(prof);
+      }
+    }
+    return prof;
   }
   return null;
 }
@@ -53,6 +80,7 @@ function getAttendanceStorageKey(userId: string): string {
 export function generateSampleAttendance(profile: StudentProfile): AttendanceRecord[] {
   const timetable = getActiveTimetable(profile);
   const records: AttendanceRecord[] = [];
+  if (!timetable) return records;
   const today = new Date();
 
   // Generate realistic attendance across past 24 days (skipping Sundays)
@@ -299,6 +327,7 @@ export function markAllPeriodsForDate(
   if (!profile) return [];
   const timetable = getActiveTimetable(profile);
   const records = getStoredAttendance(profile);
+  if (!timetable) return records;
   const dateObj = new Date(dateStr);
   const dayName = dateObj.toLocaleDateString("en-US", { weekday: "long" });
 
@@ -353,6 +382,7 @@ export function markLabSession(
   if (!profile) return [];
   const timetable = getActiveTimetable(profile);
   const records = getStoredAttendance(profile);
+  if (!timetable) return records;
   const dateObj = new Date(dateStr);
   const dayName = dateObj.toLocaleDateString("en-US", { weekday: "long" });
 
@@ -406,8 +436,10 @@ function getTimetableStorageKey(userId: string): string {
   return `attendx_custom_timetables_user_${userId}`;
 }
 
-export function getActiveTimetable(profile?: StudentProfile | null): UniversityTimetable {
-  if (typeof window !== "undefined" && profile?.id) {
+export function getActiveTimetable(profile?: StudentProfile | null): UniversityTimetable | null {
+  if (!profile) return null;
+
+  if (typeof window !== "undefined" && profile.id) {
     try {
       // 1. Personal override if student customized personally
       const key = getTimetableStorageKey(profile.id);
@@ -433,27 +465,21 @@ export function getActiveTimetable(profile?: StudentProfile | null): UniversityT
     }
   }
 
-  const found = profile?.activeTimetableId
-    ? UNIVERSITY_DATABASE.timetables.find((t) => t.id === profile.activeTimetableId)
-    : undefined;
-  return (
-    found ||
-    UNIVERSITY_DATABASE.timetables[0] || {
-      id: "default",
-      pageNumber: 1,
-      degree: "B.Tech",
-      branch: "Information Technology",
-      branchCode: "IT",
-      section: "SEC-B",
-      room: "TL-203",
-      session: "2025-26",
-      semester: "Semester I",
-      batches: ["P1", "P2"],
-      isVerified: true,
-      subjects: [],
-      slots: [],
-    }
-  );
+  // 3. Authoritative match by student profile branch and section
+  const matched = findTimetableForStudent({
+    branchCode: profile.branchCode,
+    section: profile.section,
+    timetableId: profile.activeTimetableId,
+  });
+  if (matched) return matched;
+
+  // 4. Administrator fallback ONLY
+  if (profile.role === "admin") {
+    return UNIVERSITY_DATABASE.timetables[0] || null;
+  }
+
+  // 5. Strictly zero universal fallbacks (never fall back to IT Section-B for students)
+  return null;
 }
 
 export function saveOfficialClassTimetable(
@@ -522,7 +548,7 @@ export function saveOfficialClassTimetable(
   }
 }
 
-export function resetCustomTimetable(profile?: StudentProfile | null): UniversityTimetable {
+export function resetCustomTimetable(profile?: StudentProfile | null): UniversityTimetable | null {
   const currentProfile = profile !== undefined ? profile : getStoredProfile();
   if (typeof window !== "undefined" && currentProfile?.id) {
     try {
@@ -1026,7 +1052,7 @@ export function voteInPoll(
           semester: "Semester I",
           academicSession: "2025-26",
           attendanceThreshold: 75.0,
-          activeTimetableId: "mmmut-btech-it-b-2025",
+          activeTimetableId: "",
         });
 
   const all = getClassPolls();

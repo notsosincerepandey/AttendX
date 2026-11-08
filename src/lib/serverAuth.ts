@@ -1,5 +1,11 @@
 import crypto from "crypto";
 import { UserAccount, UserRole } from "@/types";
+import {
+  UNIVERSITY_DATABASE,
+  getBranchFullName,
+  normalizeSection,
+  findTimetableForStudent,
+} from "@/data/extractedTimetables";
 
 interface ServerUserRecord extends UserAccount {
   passwordHash?: string;
@@ -126,23 +132,35 @@ export function authenticateTokenOffline(
       return { success: true, user: sanitizeUser(matched) };
     }
 
+    const payloadObj: any = payload.startsWith("{") ? JSON.parse(payload) : null;
+    const bCode = payloadObj?.branchCode || "";
+    const bName = payloadObj?.branch || (bCode ? getBranchFullName(bCode) : "Engineering");
+    const sec = normalizeSection(payloadObj?.section || "");
+    const batch = payloadObj?.batch || "P1";
+    const matchedTimetable = findTimetableForStudent({
+      branchCode: bCode,
+      section: sec,
+      timetableId: payloadObj?.activeTimetableId,
+    });
+
     return {
       success: true,
       user: {
         id: userId,
-        fullName: email.split("@")[0],
+        fullName: payloadObj?.fullName || email.split("@")[0],
         email,
         rollNumber: rollNumber || (email.match(/^\d+$/) ? email : undefined),
+        enrollmentNumber: payloadObj?.enrollmentNumber,
         role: role as UserRole,
-        degree: "B.Tech",
-        branch: "Engineering",
-        branchCode: "IT",
-        section: "SEC-B",
-        batch: "P1",
-        semester: "Semester I",
-        academicSession: "2026-27",
-        attendanceThreshold: 75.0,
-        activeTimetableId: "mmmut-btech-it-b-2025",
+        degree: payloadObj?.degree || "B.Tech",
+        branch: role === "admin" ? "Administrator" : bName,
+        branchCode: role === "admin" ? "ADMIN" : bCode,
+        section: role === "admin" ? "" : sec,
+        batch,
+        semester: payloadObj?.semester || "Semester I",
+        academicSession: payloadObj?.academicSession || "2025-26",
+        attendanceThreshold: Number(payloadObj?.attendanceThreshold) || 75.0,
+        activeTimetableId: role === "admin" ? (UNIVERSITY_DATABASE.timetables[0]?.id || "") : (matchedTimetable?.id || ""),
       },
     };
   } catch {
@@ -205,7 +223,7 @@ export async function authenticateCredentials(
         // Secure query matching either roll_number or enrollment_number for students
         const { data } = await adminClient
           .from("student_profiles")
-          .select("*")
+          .select("*, branches:branch_id (code, name, degree), sections:section_id (section_name, default_room)")
           .or(`roll_number.eq.${trimmed},enrollment_number.ilike.${trimmed}`)
           .maybeSingle();
         matchedProfile = data;
@@ -256,7 +274,7 @@ export async function authenticateCredentials(
           try {
             const { data } = await supabase
               .from("student_profiles")
-              .select("*")
+              .select("*, branches:branch_id (code, name, degree), sections:section_id (section_name, default_room)")
               .eq("user_id", authResult.user.id)
               .maybeSingle();
             profile = data;
@@ -285,23 +303,55 @@ export async function authenticateCredentials(
         // Mask internal alias for students completely so internal alias is never exposed or asked for
         const displayIdentifier = role === "admin" ? "admin@attendx.ac.in" : (rollNumber || enrollmentNumber || trimmed);
 
+        const resolvedBranchCode =
+          profile?.managed_branch_code ||
+          profile?.branches?.code ||
+          profile?.branch_code ||
+          appMeta.branch_code ||
+          "";
+
+        const resolvedBranchName =
+          profile?.branches?.name ||
+          (resolvedBranchCode ? getBranchFullName(resolvedBranchCode) : "") ||
+          profile?.branch ||
+          "Engineering";
+
+        const resolvedSection = normalizeSection(
+          profile?.managed_section ||
+          profile?.sections?.section_name ||
+          profile?.section ||
+          appMeta.section ||
+          ""
+        );
+
+        const resolvedBatch = profile?.batch || appMeta.batch || "P1";
+
+        const matchedTimetable = findTimetableForStudent({
+          branchCode: resolvedBranchCode,
+          section: resolvedSection,
+        });
+
+        const activeTimetableId = matchedTimetable?.id || "";
+
         const userObj: UserAccount = {
           id: profile?.id || authResult.user.id,
-          fullName: profile?.full_name || authResult.user.user_metadata?.full_name || "AttendX Administrator",
+          fullName: profile?.full_name || authResult.user.user_metadata?.full_name || (role === "admin" ? "AttendX Administrator" : "Student"),
           email: role === "admin" ? "admin@attendx.ac.in" : displayIdentifier,
           rollNumber,
           enrollmentNumber,
           fatherName: profile?.father_name || appMeta.father_name,
           role,
-          degree: "B.Tech",
-          branch: profile?.branch || "Information Technology",
-          branchCode: profile?.managed_branch_code || profile?.branch_code || appMeta.branch_code || "IT",
-          section: profile?.managed_section || profile?.section || appMeta.section || profile?.section_id || "SEC-B",
-          batch: profile?.batch || appMeta.batch || "P1",
+          degree: profile?.degree || profile?.branches?.degree || "B.Tech",
+          branch: role === "admin" ? "Administrator" : resolvedBranchName,
+          branchCode: role === "admin" ? "ADMIN" : resolvedBranchCode,
+          section: role === "admin" ? "" : resolvedSection,
+          batch: resolvedBatch,
           semester: profile?.semester || "Semester I",
-          academicSession: profile?.academic_session || appMeta.academic_session || "2026-27",
+          academicSession: profile?.academic_session || appMeta.academic_session || "2025-26",
+          academicSessionId: profile?.academic_session_id,
+          universityId: profile?.university_id,
           attendanceThreshold: Number(profile?.attendance_threshold) || 75.0,
-          activeTimetableId: "mmmut-btech-it-b-2025",
+          activeTimetableId: role === "admin" ? (UNIVERSITY_DATABASE.timetables[0]?.id || "") : activeTimetableId,
           managedBranchCode: profile?.managed_branch_code,
           managedSection: profile?.managed_section,
           managedBatch: profile?.managed_batch,
@@ -542,20 +592,38 @@ export async function rotateUserPassword(
       }
 
       if (!newSessionToken) {
+        let profData: any = null;
+        try {
+          const { data: p } = await supabaseAdmin
+            .from("student_profiles")
+            .select("*, branches:branch_id (code, name, degree), sections:section_id (section_name)")
+            .eq("user_id", authUser.id)
+            .maybeSingle();
+          profData = p;
+        } catch {
+          // ignore lookup error
+        }
+
+        const bCode = profData?.managed_branch_code || profData?.branches?.code || profData?.branch_code || "";
+        const bName = profData?.branches?.name || (bCode ? getBranchFullName(bCode) : "Engineering");
+        const sec = normalizeSection(profData?.managed_section || profData?.sections?.section_name || profData?.section || "");
+        const batch = profData?.batch || "P1";
+        const matchedTt = findTimetableForStudent({ branchCode: bCode, section: sec });
+
         const refreshedUser: UserAccount = {
           id: authUser.id,
-          fullName: authUser.user_metadata?.full_name || "User",
+          fullName: profData?.full_name || authUser.user_metadata?.full_name || "User",
           email: authUser.email || targetEmail,
           role,
-          degree: "B.Tech",
-          branch: "Information Technology",
-          branchCode: "IT",
-          section: "SEC-B",
-          batch: "P1",
-          semester: "Semester I",
-          academicSession: "2026-27",
-          attendanceThreshold: 75.0,
-          activeTimetableId: "mmmut-btech-it-b-2025",
+          degree: profData?.degree || profData?.branches?.degree || "B.Tech",
+          branch: role === "admin" ? "Administrator" : bName,
+          branchCode: role === "admin" ? "ADMIN" : bCode,
+          section: role === "admin" ? "" : sec,
+          batch,
+          semester: profData?.semester || "Semester I",
+          academicSession: profData?.academic_session || "2025-26",
+          attendanceThreshold: Number(profData?.attendance_threshold) || 75.0,
+          activeTimetableId: role === "admin" ? (UNIVERSITY_DATABASE.timetables[0]?.id || "") : (matchedTt?.id || ""),
           requiresPasswordChange: false,
           passwordChangeConsumed: true,
         };

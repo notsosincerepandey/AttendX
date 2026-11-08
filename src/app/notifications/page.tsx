@@ -107,6 +107,18 @@ export default function NotificationSettingsPage() {
   }
 
   const timetable = getActiveTimetable(profile);
+  if (!timetable) {
+    return (
+      <div className="max-w-2xl mx-auto my-12 p-8 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl text-center space-y-4">
+        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+          Timetable Mapping Not Found
+        </h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          No official timetable is currently mapped for branch {profile.branch} ({profile.branchCode}), section {profile.section}.
+        </p>
+      </div>
+    );
+  }
   const today = new Date();
   const dayName = today.toLocaleDateString("en-US", { weekday: "long" });
 

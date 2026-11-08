@@ -73,10 +73,26 @@ export default function AttendanceHistoryPage() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [editingRecord]);
 
-  if (!profile || !timetable) {
+  if (!profile) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!timetable) {
+    return (
+      <div className="max-w-2xl mx-auto my-12 p-8 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl text-center space-y-4">
+        <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-400 mx-auto flex items-center justify-center">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+          Timetable Mapping Not Found
+        </h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+          No official timetable is currently mapped for branch <span className="font-semibold text-zinc-900 dark:text-zinc-200">{profile.branch} ({profile.branchCode})</span>, section <span className="font-semibold text-zinc-900 dark:text-zinc-200">{profile.section}</span>.
+        </p>
       </div>
     );
   }

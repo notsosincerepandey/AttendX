@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAllActiveSubscriptions, removeSubscription } from "@/lib/subscriptionStore";
 import { sendWebPush } from "@/lib/webpush";
-import { UNIVERSITY_DATABASE } from "@/data/extractedTimetables";
+import { UNIVERSITY_DATABASE, findTimetableForStudent } from "@/data/extractedTimetables";
 import { generateActionToken, getISTDateTime, validateCronAuthorization } from "@/lib/actionSecurity";
 
 // Official MMMUT Period Timing Map (IST)
@@ -99,14 +99,53 @@ async function handleCheckClasses(req: NextRequest) {
     let duplicateSuppressed = 0;
     const failures: any[] = [];
 
+    // Pre-fetch unique student profiles for all subscribers
+    const studentProfileMap = new Map<string, { branchCode: string; section: string; batch: string }>();
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const uniqueStudentIds = Array.from(new Set(subscriptions.map((s) => s.studentId))).filter(Boolean);
+        if (uniqueStudentIds.length > 0) {
+          const { createClient } = await import("@supabase/supabase-js");
+          const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+          );
+          const { data: profiles } = await supabase
+            .from("student_profiles")
+            .select("id, branch_code, section, batch")
+            .in("id", uniqueStudentIds);
+
+          if (profiles) {
+            profiles.forEach((p: any) => {
+              studentProfileMap.set(p.id, {
+                branchCode: p.branch_code || "IT",
+                section: p.section || "SEC-B",
+                batch: p.batch || "ALL",
+              });
+            });
+          }
+        }
+      } catch (lookupErr) {
+        console.warn("Error fetching subscriber profiles for check-classes:", lookupErr);
+      }
+    }
+
     for (const sub of subscriptions) {
-      // Default to IT Section B (or student's assigned timetable)
-      const timetable = UNIVERSITY_DATABASE.timetables[0];
+      const studentMeta = studentProfileMap.get(sub.studentId);
+      const timetable = findTimetableForStudent({
+        branchCode: studentMeta?.branchCode || "IT",
+        section: studentMeta?.section || "SEC-B",
+      });
       if (!timetable) continue;
 
-      // Filter slots for today and the matched period
+      const studentBatch = studentMeta?.batch || "ALL";
+
+      // Filter slots for today and the matched period matching the student's practical batch
       const matchingSlots = timetable.slots.filter(
-        (s) => s.day === dayOfWeek && s.period === targetPeriod
+        (s) =>
+          s.day === dayOfWeek &&
+          s.period === targetPeriod &&
+          (s.batch === "ALL" || studentBatch === "ALL" || s.batch === studentBatch)
       );
 
       for (const slot of matchingSlots) {

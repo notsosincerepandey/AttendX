@@ -8174,3 +8174,48 @@ export function getAllBranches(): { code: string; name: string }[] {
     name: BRANCH_NAMES_MAP[code] || code,
   }));
 }
+
+export function normalizeSection(section?: string): string {
+  if (!section) return "";
+  const s = section.trim().toUpperCase().replace(/\s+/g, "");
+  if (s.startsWith("SEC-")) return s;
+  if (s.startsWith("SEC")) return `SEC-${s.replace(/^SEC/, "")}`;
+  if (["A", "B", "C", "D", "E"].includes(s)) return `SEC-${s}`;
+  return s;
+}
+
+export function getBranchFullName(branchCode?: string): string {
+  if (!branchCode) return "Engineering";
+  const code = branchCode.trim().toUpperCase();
+  return BRANCH_NAMES_MAP[code] || branchCode || "Engineering";
+}
+
+export function findTimetableForStudent(params: {
+  branchCode?: string;
+  section?: string;
+  timetableId?: string;
+}): UniversityTimetable | null {
+  const branchCode = (params.branchCode || "").trim().toUpperCase();
+  const normSec = normalizeSection(params.section);
+
+  // 1. Authoritative match by branch code and normalized section
+  if (branchCode && normSec) {
+    const matched = UNIVERSITY_DATABASE.timetables.find(
+      (t) => t.branchCode.toUpperCase() === branchCode && t.section.toUpperCase() === normSec
+    );
+    if (matched) return matched;
+  }
+
+  // 2. Fallback to timetableId ONLY if it belongs to the same branch (prevent cross-branch contamination)
+  if (params.timetableId) {
+    const byId = UNIVERSITY_DATABASE.timetables.find((t) => t.id === params.timetableId);
+    if (byId) {
+      if (!branchCode || byId.branchCode.toUpperCase() === branchCode) {
+        return byId;
+      }
+    }
+  }
+
+  // 3. Strictly zero universal fallbacks (never fall back to IT Section-B)
+  return null;
+}

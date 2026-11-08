@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { UserAccount, UserRole } from "@/types";
+import {
+  UNIVERSITY_DATABASE,
+  getBranchFullName,
+  normalizeSection,
+  findTimetableForStudent,
+} from "@/data/extractedTimetables";
 
 /**
  * Verifies whether a token is a genuine 3-part Supabase JWT (header.payload.signature).
@@ -208,16 +214,28 @@ export async function verifyServerSession(req: NextRequest): Promise<VerifiedSes
         }
       }
 
-      resolvedBranchCode = resolvedBranchCode || "IT";
-      resolvedBranchName = resolvedBranchName || "Engineering";
-      resolvedSection = resolvedSection || "SEC-B";
+      resolvedBranchCode = resolvedBranchCode || (authoritativeRole === "admin" ? "ADMIN" : "");
+      resolvedBranchName =
+        authoritativeRole === "admin"
+          ? "Administrator"
+          : (resolvedBranchName || (resolvedBranchCode ? getBranchFullName(resolvedBranchCode) : "Engineering"));
+      resolvedSection = authoritativeRole === "admin" ? "" : normalizeSection(resolvedSection);
+
+      const matchedTimetable = authoritativeRole === "admin"
+        ? UNIVERSITY_DATABASE.timetables[0]
+        : findTimetableForStudent({
+            branchCode: resolvedBranchCode,
+            section: resolvedSection,
+          });
+
+      const activeTimetableId = matchedTimetable?.id || "";
 
       const verifiedUser: UserAccount = {
         id: authUser.id,
-        fullName: profile?.full_name || authUser.user_metadata?.full_name || "User",
+        fullName: profile?.full_name || authUser.user_metadata?.full_name || (authoritativeRole === "admin" ? "AttendX Administrator" : "User"),
         email: userEmail,
         role: authoritativeRole,
-        degree: "B.Tech",
+        degree: profile?.degree || "B.Tech",
         branch: resolvedBranchName,
         branchCode: resolvedBranchCode,
         section: resolvedSection,
@@ -227,7 +245,7 @@ export async function verifyServerSession(req: NextRequest): Promise<VerifiedSes
         academicSessionId: profile?.academic_session_id,
         universityId: profile?.university_id,
         attendanceThreshold: Number(profile?.attendance_threshold) || 75.0,
-        activeTimetableId: `mmmut-btech-${resolvedBranchCode.toLowerCase()}-${resolvedSection.toLowerCase().replace(/[^a-z0-9]/g, "")}-2025`,
+        activeTimetableId,
         managedBranchCode: profile?.managed_branch_code || (authoritativeRole === "class_admin" ? resolvedBranchCode : undefined),
         managedSection: profile?.managed_section || (authoritativeRole === "class_admin" ? resolvedSection : undefined),
         managedBatch: profile?.managed_batch || (authoritativeRole === "class_admin" ? (profile?.batch || "ALL") : undefined),
