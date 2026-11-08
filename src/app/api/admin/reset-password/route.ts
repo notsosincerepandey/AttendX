@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
     // Protection against resetting Administrator accounts
     if (
       trimmedIdentifier.toLowerCase() === "admin@mmmut.ac.in" ||
+      trimmedIdentifier.toLowerCase() === "admin@attendx.ac.in" ||
       trimmedIdentifier.toLowerCase() === session.user.email.toLowerCase()
     ) {
       return NextResponse.json(

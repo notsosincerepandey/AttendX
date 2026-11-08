@@ -6,7 +6,7 @@
  * 2. Class Representative (CR) Appointment & Revocation
  * 3. Timetable Review, Consistency Checking & Scoped Publication
  * 
- * Security: Strictly enforces that only the single application Admin (admin@mmmut.ac.in)
+ * Security: Strictly enforces that only the single application Admin (admin@attendx.ac.in)
  * can invoke these operations. Never trusts client-supplied roles or scopes.
  */
 
@@ -32,7 +32,7 @@ export class ServerAdminStore {
         id: "c70936b3-ffe8-4baa-908d-f92fbd62ca9a",
         userId: "c70936b3-ffe8-4baa-908d-f92fbd62ca9a",
         fullName: "Shubh Pandey",
-        email: "admin@mmmut.ac.in",
+        email: "admin@attendx.ac.in",
         rollNumber: "202501001",
         branchCode: "IT",
         branchName: "Information Technology",

@@ -166,7 +166,8 @@ export async function authenticateCredentials(
   passwordChangeConsumed?: boolean;
 }> {
   const trimmed = identifier.trim();
-  let targetEmail = "";
+  const isPrimaryAdmin = trimmed.toLowerCase() === "admin@attendx.ac.in";
+  let targetEmail = isPrimaryAdmin ? "admin@attendx.ac.in" : "";
   let resolvedRoll: string | undefined = undefined;
   let resolvedEnrollment: string | undefined = undefined;
   let resolvedProfile: any = null;
@@ -183,7 +184,7 @@ export async function authenticateCredentials(
     };
   }
 
-  // 1. Authoritative resolution of Roll Number or Enrollment Number via Supabase
+  // 1. Authoritative resolution of Roll Number, Enrollment Number, or Admin Email via Supabase
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
       const { createClient } = await import("@supabase/supabase-js");
@@ -192,12 +193,23 @@ export async function authenticateCredentials(
         process.env.SUPABASE_SERVICE_ROLE_KEY
       );
 
-      // Secure query matching either roll_number or enrollment_number
-      const { data: matchedProfile } = await adminClient
-        .from("student_profiles")
-        .select("*")
-        .or(`roll_number.eq.${trimmed},enrollment_number.ilike.${trimmed}`)
-        .maybeSingle();
+      let matchedProfile: any = null;
+      if (isPrimaryAdmin) {
+        const { data } = await adminClient
+          .from("student_profiles")
+          .select("*")
+          .eq("email", "admin@attendx.ac.in")
+          .maybeSingle();
+        matchedProfile = data;
+      } else {
+        // Secure query matching either roll_number or enrollment_number for students
+        const { data } = await adminClient
+          .from("student_profiles")
+          .select("*")
+          .or(`roll_number.eq.${trimmed},enrollment_number.ilike.${trimmed}`)
+          .maybeSingle();
+        matchedProfile = data;
+      }
 
       if (matchedProfile) {
         resolvedProfile = matchedProfile;
@@ -215,7 +227,7 @@ export async function authenticateCredentials(
   }
 
   if (!targetEmail) {
-    targetEmail = rollNumberToEmailAlias(trimmed);
+    targetEmail = isPrimaryAdmin ? "admin@attendx.ac.in" : rollNumberToEmailAlias(trimmed);
   }
 
   // 2. Supabase Auth authoritative sign in if cloud credentials exist
@@ -266,12 +278,12 @@ export async function authenticateCredentials(
           false;
 
         // Mask internal alias for students completely so internal alias is never exposed or asked for
-        const displayIdentifier = rollNumber || enrollmentNumber || trimmed;
+        const displayIdentifier = role === "admin" ? "admin@attendx.ac.in" : (rollNumber || enrollmentNumber || trimmed);
 
         const userObj: UserAccount = {
           id: profile?.id || authResult.user.id,
-          fullName: profile?.full_name || authResult.user.user_metadata?.full_name || "User",
-          email: displayIdentifier,
+          fullName: profile?.full_name || authResult.user.user_metadata?.full_name || "AttendX Administrator",
+          email: role === "admin" ? "admin@attendx.ac.in" : displayIdentifier,
           rollNumber,
           enrollmentNumber,
           fatherName: profile?.father_name || appMeta.father_name,
@@ -354,7 +366,8 @@ export async function rotateUserPassword(
   }
 
   const normalizedIdentifier = identifierOrEmail.trim();
-  let targetEmail = rollNumberToEmailAlias(normalizedIdentifier);
+  const isPrimaryAdmin = normalizedIdentifier.toLowerCase() === "admin@attendx.ac.in";
+  let targetEmail = isPrimaryAdmin ? "admin@attendx.ac.in" : rollNumberToEmailAlias(normalizedIdentifier);
   let resolvedUserId: string | undefined = undefined;
 
   // If Supabase is configured, update Supabase Auth via Admin Service Role
@@ -366,13 +379,15 @@ export async function rotateUserPassword(
         process.env.SUPABASE_SERVICE_ROLE_KEY
       );
 
-      // Match profile by roll_number, enrollment_number, or user_id
+      // Match profile by roll_number, enrollment_number, email, or user_id
       try {
-        const { data: matchedProfile } = await supabaseAdmin
-          .from("student_profiles")
-          .select("user_id, email, roll_number, enrollment_number")
-          .or(`roll_number.eq.${normalizedIdentifier},enrollment_number.ilike.${normalizedIdentifier},user_id.eq.${normalizedIdentifier}`)
-          .maybeSingle();
+        let query = supabaseAdmin.from("student_profiles").select("user_id, email, roll_number, enrollment_number");
+        if (isPrimaryAdmin) {
+          query = query.eq("email", "admin@attendx.ac.in") as any;
+        } else {
+          query = query.or(`roll_number.eq.${normalizedIdentifier},enrollment_number.ilike.${normalizedIdentifier},user_id.eq.${normalizedIdentifier}`) as any;
+        }
+        const { data: matchedProfile } = await query.maybeSingle();
 
         if (matchedProfile) {
           resolvedUserId = matchedProfile.user_id;
@@ -612,6 +627,7 @@ export async function adminResetStudentPassword(
 
       if (
         authUser.email?.toLowerCase() === "admin@mmmut.ac.in" ||
+        authUser.email?.toLowerCase() === "admin@attendx.ac.in" ||
         authUser.id === adminUser.id ||
         (authUser.app_metadata?.role &&
           authUser.app_metadata.role !== "student" &&

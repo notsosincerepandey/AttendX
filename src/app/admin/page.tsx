@@ -476,7 +476,7 @@ export default function AdminPanelPage() {
           Access Restricted: Administrator Privileges Required
         </h2>
         <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-md mx-auto">
-          The central student directory, Class CR appointments, and master timetable publication are restricted to the primary AttendX administrator account (<span className="font-mono font-bold text-indigo-600">admin@mmmut.ac.in</span>).
+          The central student directory, Class CR appointments, and master timetable publication are restricted to the primary AttendX administrator account (<span className="font-mono font-bold text-indigo-600">admin@attendx.ac.in</span>).
         </p>
         <div className="pt-2">
           <Link
@@ -519,7 +519,7 @@ export default function AdminPanelPage() {
               Sole Administrator & System Owner
             </span>
             <span className="text-xs text-zinc-400">
-              admin@mmmut.ac.in
+              admin@attendx.ac.in
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-2.5">
@@ -1591,7 +1591,7 @@ export default function AdminPanelPage() {
                 </div>
                 <div className="text-indigo-800 dark:text-indigo-300 font-medium space-y-0.5">
                   <div>&bull; Class: <span className="font-bold">{selectedTimetable.branchCode} {selectedTimetable.section}</span> &bull; Room: <span className="font-mono font-bold">{selectedTimetable.room}</span></div>
-                  <div>&bull; Publishing Admin: <span className="font-bold text-indigo-950 dark:text-white">admin@mmmut.ac.in</span></div>
+                  <div>&bull; Publishing Admin: <span className="font-bold text-indigo-950 dark:text-white">admin@attendx.ac.in</span></div>
                   <div>
                     &bull; Active Slots to Publish:{" "}
                     <span className="font-mono font-bold">
