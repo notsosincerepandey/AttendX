@@ -36,7 +36,7 @@ async function runTests() {
   const env = parseEnv(path.resolve(process.cwd(), ".env.local"));
   Object.assign(process.env, env);
 
-  const adminPassword = env.DEV_SEED_PASSWORD;
+  const adminPassword = "AdminPermanent@2026!Sec";
   const studentDefaultPass = "student@2026";
   const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
