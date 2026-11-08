@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     if (result.success) {
       return NextResponse.json({
         success: true,
+        sessionToken: result.sessionToken,
         message: "Your password was successfully updated and rotated in the secure auth store.",
       });
     }

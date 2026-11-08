@@ -127,19 +127,45 @@ export function authenticateTokenOffline(
 
     const [encodedPayload, signature] = parts;
     const payload = Buffer.from(encodedPayload, "base64").toString("utf-8");
-    const [userId, email, role, expiresAtStr, rollNumber] = payload.split(":");
 
-    const expiresAt = Number(expiresAtStr);
-    if (Date.now() > expiresAt) {
+    let userId = "";
+    let email = "";
+    let role: UserRole = "student";
+    let expiresAt = 0;
+    let rollNumber: string | undefined = undefined;
+
+    if (payload.startsWith("{")) {
+      const parsed = JSON.parse(payload);
+      userId = parsed.id || parsed.userId || "";
+      email = parsed.email || "";
+      role = (parsed.role as UserRole) || "student";
+      expiresAt = Number(parsed.exp ? parsed.exp * 1000 : parsed.expiresAt || 0);
+      rollNumber = parsed.rollNumber;
+    } else {
+      const [uId, em, ro, expStr, roll] = payload.split(":");
+      userId = uId;
+      email = em;
+      role = ro as UserRole;
+      expiresAt = Number(expStr);
+      rollNumber = roll;
+    }
+
+    if (expiresAt && Date.now() > expiresAt) {
       return { success: false, error: "Session token has expired." };
     }
 
     const secret = getSigningSecret();
-    const expectedSig = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+    const expectedSigHex = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+    const expectedSigB64 = crypto.createHmac("sha256", secret).update(encodedPayload).digest("hex");
 
     const sigBuf = Buffer.from(signature, "hex");
-    const expBuf = Buffer.from(expectedSig, "hex");
-    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    const expBuf1 = Buffer.from(expectedSigHex, "hex");
+    const expBuf2 = Buffer.from(expectedSigB64, "hex");
+
+    const matches1 = sigBuf.length === expBuf1.length && crypto.timingSafeEqual(sigBuf, expBuf1);
+    const matches2 = sigBuf.length === expBuf2.length && crypto.timingSafeEqual(sigBuf, expBuf2);
+
+    if (!matches1 && !matches2) {
       return { success: false, error: "Forged or tampered session token." };
     }
 
@@ -264,8 +290,8 @@ export async function authenticateCredentials(
           role,
           degree: "B.Tech",
           branch: profile?.branch || "Information Technology",
-          branchCode: profile?.managed_branch_code || appMeta.branch_code || "IT",
-          section: profile?.managed_section || profile?.section_id || appMeta.section || "SEC-B",
+          branchCode: profile?.managed_branch_code || profile?.branch_code || appMeta.branch_code || "IT",
+          section: profile?.managed_section || profile?.section || appMeta.section || profile?.section_id || "SEC-B",
           batch: profile?.batch || appMeta.batch || "P1",
           semester: profile?.semester || "Semester I",
           academicSession: profile?.academic_session || appMeta.academic_session || "2026-27",
@@ -335,7 +361,7 @@ export async function rotateUserPassword(
     isStudentSelfService?: boolean;
     callerRole?: UserRole;
   }
-): Promise<{ success: boolean; message?: string; error?: string; statusCode?: number }> {
+): Promise<{ success: boolean; sessionToken?: string; message?: string; error?: string; statusCode?: number }> {
   if (!newPassword || newPassword.length < 8) {
     return { success: false, error: "New password must be at least 8 characters long.", statusCode: 400 };
   }
@@ -426,7 +452,53 @@ export async function rotateUserPassword(
         // Table columns may not exist yet
       }
 
-      return { success: true, message: "Your password was successfully updated and rotated." };
+      // Re-issue a fresh authoritative session token because Supabase Auth revokes existing sessions on password change
+      let newSessionToken: string | undefined = undefined;
+      if (authUser.email && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        try {
+          const { createClient } = await import("@supabase/supabase-js");
+          const anonClient = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+          );
+          const { data: signData } = await anonClient.auth.signInWithPassword({
+            email: authUser.email,
+            password: newPassword,
+          });
+          if (signData?.session?.access_token) {
+            newSessionToken = signData.session.access_token;
+          }
+        } catch (signErr) {
+          console.warn("Unable to obtain fresh Supabase JWT after rotation, using HMAC token:", signErr);
+        }
+      }
+
+      if (!newSessionToken) {
+        const refreshedUser: UserAccount = {
+          id: authUser.id,
+          fullName: authUser.user_metadata?.full_name || "User",
+          email: authUser.email || targetEmail,
+          role,
+          degree: "B.Tech",
+          branch: "Information Technology",
+          branchCode: "IT",
+          section: "SEC-B",
+          batch: "P1",
+          semester: "Semester I",
+          academicSession: "2026-27",
+          attendanceThreshold: 75.0,
+          activeTimetableId: "mmmut-btech-it-b-2025",
+          requiresPasswordChange: false,
+          passwordChangeConsumed: true,
+        };
+        newSessionToken = createServerSessionToken(refreshedUser);
+      }
+
+      return {
+        success: true,
+        sessionToken: newSessionToken,
+        message: "Your password was successfully updated and rotated.",
+      };
     } catch (err: any) {
       console.error("Supabase password rotation error:", err);
       return { success: false, error: "Failed to update password in Supabase Auth.", statusCode: 500 };

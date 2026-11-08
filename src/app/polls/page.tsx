@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { StudentProfile, ClassPoll } from "@/types";
 import { getStoredProfile } from "@/lib/storage";
-import { getSessionToken } from "@/lib/auth";
+import { getSessionToken, setSessionToken } from "@/lib/auth";
 import { canUserVoteInPoll, canUserClosePoll } from "@/lib/serverPolls";
 import {
   Vote,
@@ -63,6 +63,10 @@ export default function ClassPollsPage() {
       if (res.ok && data.success && Array.isArray(data.polls)) {
         setPolls(data.polls);
         setErrorBanner(null);
+      } else if (res.status === 401) {
+        setSessionToken(null);
+        setErrorBanner("Your session has expired or was revoked. Please log in again to access class polls.");
+        setPolls([]);
       } else {
         setErrorBanner(data.error || "Unable to load class polls from the university server.");
         setPolls([]);
@@ -140,6 +144,9 @@ export default function ClassPollsPage() {
       if (res.ok && data.success) {
         showToast("Your vote has been counted!");
         await refreshPolls(profile);
+      } else if (res.status === 401) {
+        setSessionToken(null);
+        showToast("Session expired or revoked. Please log in again.");
       } else {
         showToast(data.error || "Unable to cast vote.");
       }
@@ -168,6 +175,9 @@ export default function ClassPollsPage() {
       if (res.ok && data.success) {
         showToast("Poll closed for voting.");
         await refreshPolls(profile);
+      } else if (res.status === 401) {
+        setSessionToken(null);
+        showToast("Session expired or revoked. Please log in again.");
       } else {
         showToast(data.error || "Unable to close poll.");
       }
@@ -237,6 +247,9 @@ export default function ClassPollsPage() {
         setIsModalOpen(false);
         showToast("Class poll published successfully!");
         await refreshPolls(profile);
+      } else if (res.status === 401) {
+        setSessionToken(null);
+        showToast("Session expired or revoked. Please log in again.");
       } else {
         showToast(data.error || "Failed to create class poll.");
       }

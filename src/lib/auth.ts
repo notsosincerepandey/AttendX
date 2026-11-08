@@ -181,6 +181,9 @@ export async function rotatePassword(
 
     const data = await res.json();
     if (res.ok && data.success) {
+      if (data.sessionToken) {
+        setSessionToken(data.sessionToken);
+      }
       const user = getCurrentUser();
       if (user) {
         user.requiresPasswordChange = false;

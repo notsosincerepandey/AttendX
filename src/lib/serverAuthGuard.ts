@@ -68,7 +68,7 @@ export async function verifyServerSession(req: NextRequest): Promise<VerifiedSes
       );
 
       // Check if token is an HMAC server session token or standard Supabase JWT
-      const isHmacToken = token.includes(".") && token.split(".").length === 2 && !token.startsWith("eyJ");
+      const isHmacToken = token.includes(".") && token.split(".").length === 2;
       let authUser: any = null;
       let userEmail = "";
       let appMetaRole: UserRole | null = null;
@@ -103,16 +103,37 @@ export async function verifyServerSession(req: NextRequest): Promise<VerifiedSes
         // Verify JWT against Supabase Auth service
         const { data: authData, error: authErr } = await supabase.auth.getUser(token);
         if (authErr || !authData?.user) {
-          return {
-            authenticated: false,
-            user: null,
-            error: "Invalid, expired, or revoked Supabase Auth session token.",
-            statusCode: 401,
-          };
+          // Check if token is a valid offline session token fallback before rejecting
+          const { authenticateTokenOffline } = await import("@/lib/serverAuth");
+          const fallbackCheck = authenticateTokenOffline(token);
+          if (fallbackCheck.success && fallbackCheck.user) {
+            hmacUser = fallbackCheck.user;
+            userEmail = hmacUser.email;
+            appMetaRole = hmacUser.role;
+            authUser = {
+              id: hmacUser.id,
+              email: hmacUser.email,
+              user_metadata: { full_name: hmacUser.fullName },
+              app_metadata: {
+                role: hmacUser.role,
+                roll_number: hmacUser.rollNumber,
+                requires_password_change: hmacUser.requiresPasswordChange,
+                password_change_consumed: hmacUser.passwordChangeConsumed,
+              },
+            };
+          } else {
+            return {
+              authenticated: false,
+              user: null,
+              error: "Invalid, expired, or revoked Supabase Auth session token.",
+              statusCode: 401,
+            };
+          }
+        } else {
+          authUser = authData.user;
+          userEmail = authUser.email || "";
+          appMetaRole = (authUser.app_metadata?.role as UserRole) || null;
         }
-        authUser = authData.user;
-        userEmail = authUser.email || "";
-        appMetaRole = (authUser.app_metadata?.role as UserRole) || null;
       }
 
       // Query linked student profile with relational lookup
@@ -260,10 +281,12 @@ export async function requireAuth(
     );
   }
   const authHeader = req.headers.get("authorization");
-  const token =
+  const rawToken =
     authHeader && authHeader.startsWith("Bearer ")
       ? authHeader.slice(7).trim()
       : undefined;
+  // Strictly enforce requirement: Never forward internal two-part AttendX token as a Supabase JWT
+  const token = isSupabaseJwt(rawToken) ? rawToken : undefined;
   return { user: session.user, token };
 }
 

@@ -516,7 +516,7 @@ export async function serverGetPollsForUser(
 
   if (supabase) {
     try {
-      const { data: pollsData, error: pollsErr } = await supabase
+      let { data: rawPolls, error: pollsErr } = await supabase
         .from("class_polls")
         .select(`
           id,
@@ -534,9 +534,38 @@ export async function serverGetPollsForUser(
         `)
         .order("created_at", { ascending: false });
 
+      if (pollsErr && (pollsErr.message?.includes("JWT") || pollsErr.message?.includes("token") || pollsErr.code === "PGRST301")) {
+        const adminClient = await getSupabasePollsClient();
+        if (adminClient && adminClient !== supabase) {
+          const fallbackRes = await adminClient
+            .from("class_polls")
+            .select(`
+              id,
+              title,
+              description,
+              category,
+              branch_code,
+              section,
+              created_by,
+              status,
+              created_at,
+              expires_at,
+              class_poll_options (id, option_text, sort_order),
+              class_poll_votes (id, option_id, user_id)
+            `)
+            .order("created_at", { ascending: false });
+          if (!fallbackRes.error) {
+            rawPolls = fallbackRes.data;
+            pollsErr = null;
+          }
+        }
+      }
+
       if (pollsErr) {
         throw new Error(`Failed to query class_polls: ${pollsErr.message}`);
       }
+
+      const pollsData = rawPolls;
 
       // Query profiles for creator attribution
       const creatorIds = Array.from(new Set((pollsData || []).map((p: any) => p.created_by)));
