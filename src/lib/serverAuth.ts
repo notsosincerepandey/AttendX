@@ -231,12 +231,17 @@ export async function authenticateCredentials(
   }
 
   // 2. Supabase Auth authoritative sign in if cloud credentials exist
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  const supabaseAuthKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && supabaseAuthKey) {
     try {
       const { createClient } = await import("@supabase/supabase-js");
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        supabaseAuthKey
       );
 
       const { data: authResult, error: authError } = await supabase.auth.signInWithPassword({
@@ -314,9 +319,27 @@ export async function authenticateCredentials(
           requiresPasswordChange,
           passwordChangeConsumed,
         };
+      } else if (authError) {
+        console.warn(`Supabase Auth sign-in failed for ${isPrimaryAdmin ? "admin" : "student"}:`, authError.message);
+        if (isPrimaryAdmin) {
+          return {
+            success: false,
+            error: "Invalid administrator credentials. Please check your administrator email and password.",
+          };
+        }
+        return {
+          success: false,
+          error: "Invalid credentials. Please verify your roll number or enrollment number and password.",
+        };
       }
     } catch (err) {
       console.warn("Supabase Auth sign-in failed, checking server vault:", err);
+      if (isPrimaryAdmin) {
+        return {
+          success: false,
+          error: "Invalid administrator credentials. Please check your administrator email and password.",
+        };
+      }
     }
   }
 
@@ -342,9 +365,15 @@ export async function authenticateCredentials(
         passwordChangeConsumed: matched.passwordChangeConsumed ?? false,
       };
     }
+    if (isPrimaryAdmin) {
+      return { success: false, error: "Invalid administrator credentials. Please check your administrator email and password." };
+    }
     return { success: false, error: "Invalid credentials. Please verify your roll number or enrollment number and password." };
   }
 
+  if (isPrimaryAdmin) {
+    return { success: false, error: "Invalid administrator credentials. Please check your administrator email and password." };
+  }
   return { success: false, error: "Invalid credentials. Please verify your roll number or enrollment number and password." };
 }
 

@@ -93,6 +93,23 @@ async function runTests() {
   }
   console.log("[PASS] 2.2 Arbitrary email strictly rejected with HTTP 403 Forbidden!");
 
+  // TEST 2.3: Admin wrong password error message must be admin-appropriate and NEVER mention roll number
+  const wrongPassReq = new NextRequest("http://localhost:3000/api/admin/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "admin@attendx.ac.in", password: "wrong_admin_password_test" }),
+  });
+  const wrongPassRes = await adminLoginHandler(wrongPassReq);
+  const wrongPassData = await wrongPassRes.json();
+  if (wrongPassRes.status !== 401) {
+    throw new Error(`Expected 401 status for wrong admin password, got ${wrongPassRes.status}`);
+  }
+  if (wrongPassData.error?.toLowerCase().includes("roll number") || wrongPassData.error?.toLowerCase().includes("enrollment number")) {
+    throw new Error(`Security Violation: Student roll number message displayed on admin login: "${wrongPassData.error}"`);
+  }
+  console.log("[PASS] 2.3 Incorrect admin password rejected with admin-tailored error!");
+  console.log("       Error message:", wrongPassData.error);
+
   // TEST 3: Authoritative Verification Endpoint (/api/admin/auth/verify)
   console.log("\n--- TEST 3: Authoritative Admin Session Verification ---");
   const verifyReq = new NextRequest("http://localhost:3000/api/admin/auth/verify", {

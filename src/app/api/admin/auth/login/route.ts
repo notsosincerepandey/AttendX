@@ -40,8 +40,15 @@ export async function POST(req: NextRequest) {
     const result = await authenticateCredentials("admin@attendx.ac.in", password);
 
     if (!result.success || !result.user) {
+      const adminErrorMessage =
+        result.error &&
+        !result.error.toLowerCase().includes("roll number") &&
+        !result.error.toLowerCase().includes("enrollment number")
+          ? result.error
+          : "Invalid administrator credentials. Please check your administrator email and password.";
+
       return NextResponse.json(
-        { success: false, error: result.error || "Invalid administrator credentials." },
+        { success: false, error: adminErrorMessage },
         { status: 401 }
       );
     }
