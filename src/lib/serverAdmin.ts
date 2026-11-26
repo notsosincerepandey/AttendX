@@ -1324,7 +1324,7 @@ export async function serverDeleteStudentPermanently(
     const authUserId = student.user_id || student.id;
 
     // Safely delete associated dependencies
-    await supabase.from("push_subscriptions").delete().eq("user_id", authUserId);
+    await supabase.from("push_subscriptions").delete().or(`student_id.eq.${authUserId},student_id.eq.${student.id}`);
     await supabase.from("student_timetable_overrides").delete().eq("student_id", student.id);
     await supabase.from("student_attendance").delete().eq("student_id", student.id);
     await supabase.from("student_profiles").delete().eq("id", student.id);

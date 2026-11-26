@@ -59,47 +59,59 @@ export async function savePushSubscription(
 }
 
 export async function getSubscriptionsForStudent(
-  studentId: string
+  candidateIds: string | string[]
 ): Promise<StoredSubscription[]> {
+  const ids = Array.isArray(candidateIds) ? candidateIds : [candidateIds];
   const matching: StoredSubscription[] = [];
+  const matchedEndpoints = new Set<string>();
 
+  // 1. Search memory subscriptions
   memorySubscriptions.forEach((sub) => {
-    if (sub.studentId === studentId) {
+    if (ids.includes(sub.studentId)) {
       matching.push(sub);
+      matchedEndpoints.add(sub.subscription.endpoint);
     }
   });
 
-  // If Supabase configured and memory had none, query Supabase
-  if (matching.length === 0 && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  // 2. Query Supabase
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
       const { createClient } = await import("@supabase/supabase-js");
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
         process.env.SUPABASE_SERVICE_ROLE_KEY
       );
-      const { data } = await supabase
-        .from("push_subscriptions")
-        .select("*")
-        .eq("student_id", studentId);
 
-      if (data) {
+      let query = supabase.from("push_subscriptions").select("*");
+      if (ids.length === 1) {
+        query = query.eq("student_id", ids[0]);
+      } else {
+        query = query.in("student_id", ids);
+      }
+
+      const { data, error } = await query;
+
+      if (!error && data) {
         data.forEach((row: any) => {
-          const entry: StoredSubscription = {
-            id: row.id,
-            studentId: row.student_id,
-            subscription: {
-              endpoint: row.endpoint,
-              keys: {
-                p256dh: row.p256dh,
-                auth: row.auth,
+          if (!matchedEndpoints.has(row.endpoint)) {
+            const entry: StoredSubscription = {
+              id: row.id,
+              studentId: row.student_id,
+              subscription: {
+                endpoint: row.endpoint,
+                keys: {
+                  p256dh: row.p256dh,
+                  auth: row.auth,
+                },
               },
-            },
-            userAgent: row.user_agent,
-            createdAt: row.created_at,
-            updatedAt: row.updated_at,
-          };
-          matching.push(entry);
-          memorySubscriptions.set(row.endpoint, entry);
+              userAgent: row.user_agent,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+            };
+            matching.push(entry);
+            matchedEndpoints.add(row.endpoint);
+            memorySubscriptions.set(row.endpoint, entry);
+          }
         });
       }
     } catch (err) {
@@ -112,7 +124,50 @@ export async function getSubscriptionsForStudent(
 
 export async function getAllActiveSubscriptions(): Promise<StoredSubscription[]> {
   const all: StoredSubscription[] = [];
-  memorySubscriptions.forEach((sub) => all.push(sub));
+  const endpoints = new Set<string>();
+
+  memorySubscriptions.forEach((sub) => {
+    all.push(sub);
+    endpoints.add(sub.subscription.endpoint);
+  });
+
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+
+      const { data, error } = await supabase.from("push_subscriptions").select("*");
+      if (!error && data) {
+        data.forEach((row: any) => {
+          if (!endpoints.has(row.endpoint)) {
+            const entry: StoredSubscription = {
+              id: row.id,
+              studentId: row.student_id,
+              subscription: {
+                endpoint: row.endpoint,
+                keys: {
+                  p256dh: row.p256dh,
+                  auth: row.auth,
+                },
+              },
+              userAgent: row.user_agent,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+            };
+            all.push(entry);
+            endpoints.add(row.endpoint);
+            memorySubscriptions.set(row.endpoint, entry);
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching all subscriptions from Supabase:", err);
+    }
+  }
+
   return all;
 }
 

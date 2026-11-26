@@ -2,13 +2,22 @@ import * as webpushModule from "web-push";
 
 const wp: any = (webpushModule as any).default || webpushModule;
 
-const VAPID_PUBLIC_KEY =
+function cleanKey(val?: string): string {
+  if (!val) return "";
+  return val.trim().replace(/^["']|["']$/g, "").replace(/\s+/g, "");
+}
+
+const RAW_VAPID_PUBLIC_KEY =
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
   "REDACTED_VAPID_PUBLIC_KEY";
-const VAPID_PRIVATE_KEY =
+const RAW_VAPID_PRIVATE_KEY =
   process.env.VAPID_PRIVATE_KEY || "REDACTED_VAPID_PRIVATE_KEY";
-const VAPID_SUBJECT =
+const RAW_VAPID_SUBJECT =
   process.env.VAPID_SUBJECT || "mailto:admin@mmmut.ac.in";
+
+const VAPID_PUBLIC_KEY = cleanKey(RAW_VAPID_PUBLIC_KEY);
+const VAPID_PRIVATE_KEY = cleanKey(RAW_VAPID_PRIVATE_KEY);
+const VAPID_SUBJECT = cleanKey(RAW_VAPID_SUBJECT) || "mailto:admin@mmmut.ac.in";
 
 // Initialize VAPID details on server
 try {

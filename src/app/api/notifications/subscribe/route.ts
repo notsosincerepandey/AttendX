@@ -31,7 +31,35 @@ export async function POST(req: NextRequest) {
     // Authoritative student identity derived strictly from verified session
     const effectiveStudentId = session.user.id;
 
+    // Verify ownership: students can register push subscriptions for themselves; admins can register for anyone
+    const isOwner =
+      !studentId ||
+      studentId === effectiveStudentId ||
+      studentId === session.user.rollNumber ||
+      studentId.toLowerCase() === session.user.email?.toLowerCase();
+    const isAdmin = session.user.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Access Denied: You cannot register push subscriptions for another student account.",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Save under effectiveStudentId (auth.users UUID)
     const saved = await savePushSubscription(effectiveStudentId, subscription, userAgent);
+
+    // If client supplied a distinct identifier (e.g. rollNumber or profile id), also index it
+    if (studentId && studentId !== effectiveStudentId) {
+      await savePushSubscription(studentId, subscription, userAgent);
+    }
+    if (session.user.rollNumber && session.user.rollNumber !== effectiveStudentId && session.user.rollNumber !== studentId) {
+      await savePushSubscription(session.user.rollNumber, subscription, userAgent);
+    }
 
     return NextResponse.json({
       success: true,
