@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
     const section = searchParams.get("section") || undefined;
     const batch = searchParams.get("batch") || undefined;
     const session = searchParams.get("session") || undefined;
+    const academicYear = searchParams.get("academicYear") || undefined;
+    const status = searchParams.get("status") || undefined;
     const semester = searchParams.get("semester") || undefined;
     const role = searchParams.get("role") || undefined;
     const page = searchParams.get("page") ? Number(searchParams.get("page")) : 1;
@@ -39,6 +41,8 @@ export async function GET(req: NextRequest) {
       section,
       batch,
       session,
+      academicYear,
+      status,
       semester,
       role,
       page,

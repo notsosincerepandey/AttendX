@@ -285,6 +285,20 @@ export async function authenticateCredentials(
 
         const appMeta = authResult.user.app_metadata || {};
         const role = (appMeta.role as UserRole) || (profile?.role as UserRole) || "student";
+
+        // Check if student account is deactivated
+        if (
+          role !== "admin" &&
+          (profile?.is_active === false ||
+            profile?.status === "DEACTIVATED" ||
+            appMeta.account_status === "DEACTIVATED")
+        ) {
+          return {
+            success: false,
+            error: "Access Denied: This student account has been deactivated by administrator.",
+          };
+        }
+
         const rollNumber =
           resolvedRoll || profile?.roll_number || appMeta.roll_number || trimmed;
         const enrollmentNumber =
@@ -325,10 +339,14 @@ export async function authenticateCredentials(
         );
 
         const resolvedBatch = profile?.batch || appMeta.batch || "P1";
+        const academicYear = profile?.academic_year || appMeta.academic_year || "1st Year";
+        const semester = profile?.semester || (academicYear === "2nd Year" ? "Semester III" : "Semester I");
 
         const matchedTimetable = findTimetableForStudent({
           branchCode: resolvedBranchCode,
           section: resolvedSection,
+          academicYear,
+          semester,
         });
 
         const activeTimetableId = matchedTimetable?.id || "";
@@ -346,8 +364,9 @@ export async function authenticateCredentials(
           branchCode: role === "admin" ? "ADMIN" : resolvedBranchCode,
           section: role === "admin" ? "" : resolvedSection,
           batch: resolvedBatch,
-          semester: profile?.semester || "Semester I",
-          academicSession: profile?.academic_session || appMeta.academic_session || "2025-26",
+          semester,
+          academicYear,
+          academicSession: profile?.academic_session || appMeta.academic_session || "2026-27",
           academicSessionId: profile?.academic_session_id,
           universityId: profile?.university_id,
           attendanceThreshold: Number(profile?.attendance_threshold) || 75.0,
@@ -357,6 +376,8 @@ export async function authenticateCredentials(
           managedBatch: profile?.managed_batch,
           requiresPasswordChange,
           passwordChangeConsumed,
+          isActive: true,
+          status: "ACTIVE",
         };
 
         // Prefer genuine Supabase Auth JWT access token; fallback to cryptographic HMAC token for offline sessions

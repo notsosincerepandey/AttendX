@@ -19,6 +19,7 @@ export interface UserAccount {
   batch: string; // "P1", "P2", "P3", "P4", "T1", "T2"
   semester: string;
   academicSession: string;
+  academicYear?: string; // "1st Year" | "2nd Year" | "3rd Year" | "4th Year"
   academicSessionId?: string;
   universityId?: string;
   attendanceThreshold: number; // default 75
@@ -28,6 +29,8 @@ export interface UserAccount {
   managedBatch?: string; // For Batch-restricted Class Admins
   requiresPasswordChange?: boolean;
   passwordChangeConsumed?: boolean;
+  status?: string; // "ACTIVE" | "DEACTIVATED" | "SUSPENDED"
+  isActive?: boolean;
 }
 
 export interface StudentDirectoryItem {
@@ -36,17 +39,21 @@ export interface StudentDirectoryItem {
   fullName: string;
   email: string;
   rollNumber?: string;
+  enrollmentNumber?: string;
+  fatherName?: string;
   branchCode?: string;
   branchName?: string;
   section?: string;
   batch?: string;
   academicSession?: string;
+  academicYear?: string;
   semester?: string;
   role: UserRole;
   managedBranchCode?: string;
   managedSection?: string;
   managedBatch?: string;
   isActive: boolean;
+  status?: string;
   createdAt?: string;
 }
 
@@ -56,6 +63,7 @@ export interface PublishedTimetableVersion {
   section: string;
   batch: string;
   academicSession: string;
+  academicYear?: string;
   semester: string;
   versionLabel: string;
   publishedBy: string;
@@ -64,6 +72,7 @@ export interface PublishedTimetableVersion {
   timetableData: any;
   slotCount: number;
   isActive: boolean;
+  status?: "active" | "archived" | "draft";
 }
 
 export interface PeriodDefinition {
@@ -104,11 +113,13 @@ export interface UniversityTimetable {
   section: string;
   room: string;
   session: string;
+  academicYear?: string; // "1st Year" | "2nd Year" | "3rd Year" | "4th Year"
   academicSessionId?: string;
   isSessionActive?: boolean;
   semester: string;
   batches: string[];
   isVerified: boolean;
+  status?: "active" | "archived" | "draft";
   subjects: TimetableSubject[];
   slots: TimetableSlot[];
   effectiveFrom?: string;

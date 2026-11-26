@@ -16,6 +16,7 @@ import {
   ExternalLink,
   ChevronRight,
   X,
+  GraduationCap,
 } from "lucide-react";
 import { UserAccount } from "@/types";
 import { logoutAdmin } from "@/lib/auth";
@@ -25,6 +26,7 @@ export type AdminTab =
   | "students"
   | "crs"
   | "timetables"
+  | "classes"
   | "announcements"
   | "polls"
   | "cancellations"
@@ -81,7 +83,13 @@ export default function AdminSidebar({
       id: "timetables",
       label: "Master Timetables",
       icon: Calendar,
-      badge: "20 Sheets",
+      badge: "21 Sheets",
+    },
+    {
+      id: "classes",
+      label: "Class Structure",
+      icon: GraduationCap,
+      badge: "4 Years",
     },
     {
       id: "announcements",

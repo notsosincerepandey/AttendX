@@ -177,6 +177,21 @@ export async function verifyServerSession(req: NextRequest): Promise<VerifiedSes
       const authoritativeRole: UserRole =
         appMetaRole || (profile?.role as UserRole) || "student";
 
+      // Deactivation verification
+      if (
+        authoritativeRole !== "admin" &&
+        (profile?.is_active === false ||
+          profile?.status === "DEACTIVATED" ||
+          authUser.app_metadata?.account_status === "DEACTIVATED")
+      ) {
+        return {
+          authenticated: false,
+          user: null,
+          error: "Access Denied: This student account has been deactivated by administrator.",
+          statusCode: 403,
+        };
+      }
+
       // Authoritative human-readable branch code and section
       let resolvedBranchCode = profile?.managed_branch_code || (profile?.branches as any)?.code || profile?.branch_code;
       let resolvedBranchName = (profile?.branches as any)?.name || profile?.branch_name;
@@ -221,11 +236,16 @@ export async function verifyServerSession(req: NextRequest): Promise<VerifiedSes
           : (resolvedBranchName || (resolvedBranchCode ? getBranchFullName(resolvedBranchCode) : "Engineering"));
       resolvedSection = authoritativeRole === "admin" ? "" : normalizeSection(resolvedSection);
 
+      const academicYear = profile?.academic_year || authUser.app_metadata?.academic_year || "1st Year";
+      const semester = profile?.semester || (academicYear === "2nd Year" ? "Semester III" : "Semester I");
+
       const matchedTimetable = authoritativeRole === "admin"
         ? UNIVERSITY_DATABASE.timetables[0]
         : findTimetableForStudent({
             branchCode: resolvedBranchCode,
             section: resolvedSection,
+            academicYear,
+            semester,
           });
 
       const activeTimetableId = matchedTimetable?.id || "";
@@ -240,8 +260,9 @@ export async function verifyServerSession(req: NextRequest): Promise<VerifiedSes
         branchCode: resolvedBranchCode,
         section: resolvedSection,
         batch: profile?.batch || "P1",
-        semester: profile?.semester || "Semester I",
-        academicSession: profile?.academic_session || "2025-26",
+        semester,
+        academicYear,
+        academicSession: profile?.academic_session || "2026-27",
         academicSessionId: profile?.academic_session_id,
         universityId: profile?.university_id,
         attendanceThreshold: Number(profile?.attendance_threshold) || 75.0,
@@ -249,6 +270,8 @@ export async function verifyServerSession(req: NextRequest): Promise<VerifiedSes
         managedBranchCode: profile?.managed_branch_code || (authoritativeRole === "class_admin" ? resolvedBranchCode : undefined),
         managedSection: profile?.managed_section || (authoritativeRole === "class_admin" ? resolvedSection : undefined),
         managedBatch: profile?.managed_batch || (authoritativeRole === "class_admin" ? (profile?.batch || "ALL") : undefined),
+        isActive: true,
+        status: "ACTIVE",
       };
 
       return {

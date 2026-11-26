@@ -46,6 +46,8 @@ export function getStoredProfile(): StudentProfile | null {
         branchCode: prof.branchCode,
         section: prof.section,
         timetableId: prof.activeTimetableId,
+        academicYear: prof.academicYear,
+        semester: prof.semester,
       });
       if (canonicalTimetable && prof.activeTimetableId !== canonicalTimetable.id) {
         prof.activeTimetableId = canonicalTimetable.id;
@@ -465,11 +467,13 @@ export function getActiveTimetable(profile?: StudentProfile | null): UniversityT
     }
   }
 
-  // 3. Authoritative match by student profile branch and section
+  // 3. Authoritative match by student profile branch, section, and academic year
   const matched = findTimetableForStudent({
     branchCode: profile.branchCode,
     section: profile.section,
     timetableId: profile.activeTimetableId,
+    academicYear: profile.academicYear,
+    semester: profile.semester,
   });
   if (matched) return matched;
 

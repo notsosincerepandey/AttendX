@@ -46,6 +46,10 @@ export default function AdminTopBar({
       title: "Master University Timetable Management",
       subtitle: "Inspect departmental sheets, resolve slot collisions, and publish scoped updates.",
     },
+    classes: {
+      title: "Institutional Class & Academic Structure",
+      subtitle: "Multi-year academic hierarchy, semesters, branch allocations, and cohort sections.",
+    },
     announcements: {
       title: "Class & Institutional Announcements",
       subtitle: "Broadcast urgent advisories and notifications across MMMUT departments.",

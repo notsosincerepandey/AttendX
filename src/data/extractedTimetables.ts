@@ -36,6 +36,8 @@ export interface UniversityTimetable {
   section: string;
   room: string;
   session: string;
+  academicYear?: string;
+  status?: "active" | "archived" | "draft";
   semester: string;
   batches: string[];
   isVerified: boolean;
@@ -8194,28 +8196,37 @@ export function findTimetableForStudent(params: {
   branchCode?: string;
   section?: string;
   timetableId?: string;
+  academicYear?: string;
+  semester?: string;
 }): UniversityTimetable | null {
   const branchCode = (params.branchCode || "").trim().toUpperCase();
   const normSec = normalizeSection(params.section);
+  const targetYear = params.academicYear || "1st Year";
 
-  // 1. Authoritative match by branch code and normalized section
+  // Prevent 2nd, 3rd, or 4th year students from receiving 1st-year static timetables
+  const isTargetFirstYear = targetYear === "1st Year";
+
+  // 1. Authoritative match by branch code, normalized section, and academic year
   if (branchCode && normSec) {
-    const matched = UNIVERSITY_DATABASE.timetables.find(
-      (t) => t.branchCode.toUpperCase() === branchCode && t.section.toUpperCase() === normSec
-    );
+    const matched = UNIVERSITY_DATABASE.timetables.find((t) => {
+      const ttYear = t.academicYear || "1st Year";
+      if (!isTargetFirstYear && ttYear === "1st Year") return false;
+      return t.branchCode.toUpperCase() === branchCode && t.section.toUpperCase() === normSec;
+    });
     if (matched) return matched;
   }
 
-  // 2. Fallback to timetableId ONLY if it belongs to the same branch (prevent cross-branch contamination)
+  // 2. Fallback to timetableId ONLY if it belongs to the same branch and year
   if (params.timetableId) {
     const byId = UNIVERSITY_DATABASE.timetables.find((t) => t.id === params.timetableId);
     if (byId) {
-      if (!branchCode || byId.branchCode.toUpperCase() === branchCode) {
+      const ttYear = byId.academicYear || "1st Year";
+      if ((isTargetFirstYear || ttYear === targetYear) && (!branchCode || byId.branchCode.toUpperCase() === branchCode)) {
         return byId;
       }
     }
   }
 
-  // 3. Strictly zero universal fallbacks (never fall back to IT Section-B)
+  // 3. Strictly zero cross-year or cross-branch universal fallbacks
   return null;
 }
