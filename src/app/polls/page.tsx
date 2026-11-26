@@ -21,6 +21,7 @@ import {
   TrendingUp,
   ShieldCheck,
 } from "lucide-react";
+import RadialNavWheel from "@/components/RadialNavWheel";
 
 export default function ClassPollsPage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -264,9 +265,9 @@ export default function ClassPollsPage() {
   });
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Header */}
-      <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="futuristic-card p-6 rounded-2xl border border-white/[0.08] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
@@ -681,6 +682,8 @@ export default function ClassPollsPage() {
           </div>
         </div>
       )}
+      {/* Floating Radial Navigation Wheel */}
+      <RadialNavWheel variant="floating" />
     </div>
   );
 }

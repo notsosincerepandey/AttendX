@@ -26,6 +26,7 @@ import {
   deleteClassOverride,
 } from "@/lib/timetableOverrides";
 import { UNIVERSITY_DATABASE } from "@/data/extractedTimetables";
+import RadialNavWheel from "@/components/RadialNavWheel";
 import {
   Calendar,
   Clock,
@@ -583,9 +584,9 @@ export default function TimetableManagementPage() {
   const selectedDayName = selectedDateObj.toLocaleDateString("en-US", { weekday: "long" });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* Page Header */}
-      <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="futuristic-card p-6 rounded-2xl border border-white/[0.08] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
@@ -1475,6 +1476,9 @@ export default function TimetableManagementPage() {
           </div>
         </div>
       )}
+
+      {/* Floating Radial Navigation Wheel */}
+      <RadialNavWheel variant="floating" />
     </div>
   );
 }

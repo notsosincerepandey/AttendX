@@ -211,32 +211,32 @@ export default function Navbar() {
 
   if (pathname === "/login") {
     return (
-      <header className="sticky top-0 z-40 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800">
+      <header className="sticky top-0 z-40 bg-[#07070a]/85 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/login" className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-sky-400 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-              <GraduationCap className="w-6 h-6" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+              <GraduationCap className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xl font-black tracking-tight text-zinc-900 dark:text-white">
-                  Attend<span className="text-indigo-600 dark:text-indigo-400">X</span>
+                <span className="text-xl font-black tracking-tight text-white">
+                  Attend<span className="text-indigo-400">X</span>
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 border border-indigo-500/30">
                   MMMUT
                 </span>
               </div>
             </div>
           </Link>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-zinc-500 font-medium hidden sm:inline">
+            <span className="text-xs text-zinc-400 font-medium hidden sm:inline font-mono">
               Student Attendance Portal
             </span>
             <Link
               href="/admin/login"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:text-white bg-zinc-100 dark:bg-zinc-800 hover:bg-indigo-600 dark:hover:bg-indigo-600 transition-colors border border-zinc-200 dark:border-zinc-700"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 transition-colors border border-white/10"
             >
-              <ShieldAlert className="w-3.5 h-3.5 text-indigo-500" />
+              <ShieldAlert className="w-3.5 h-3.5 text-indigo-400" />
               <span>Admin Portal</span>
             </Link>
           </div>
@@ -247,26 +247,23 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800">
+      <header className="sticky top-0 z-40 bg-[#07070a]/85 backdrop-blur-xl border-b border-white/[0.06]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-sky-400 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
-                <GraduationCap className="w-6 h-6" />
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                <GraduationCap className="w-5 h-5" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xl font-black tracking-tight text-zinc-900 dark:text-white">
-                    Attend<span className="text-indigo-600 dark:text-indigo-400">X</span>
+                  <span className="text-xl font-black tracking-tight text-white">
+                    Attend<span className="text-indigo-400">X</span>
                   </span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 border border-indigo-500/30">
                     MMMUT
                   </span>
                 </div>
-                <p className="text-[10px] text-zinc-500 font-medium hidden sm:block">
-                  Smart Attendance Engine
-                </p>
               </div>
             </Link>
           </div>
@@ -282,11 +279,11 @@ export default function Navbar() {
                   href={link.href}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     isActive
-                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-300 font-bold"
-                      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      ? "bg-white/[0.08] text-white border border-white/10 font-bold shadow-xs"
+                      : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3.5 h-3.5" />
                   {link.label}
                 </Link>
               );
@@ -299,20 +296,21 @@ export default function Navbar() {
             <div className="relative" ref={notifRef}>
               <button
                 onClick={() => setIsNotifOpen(!isNotifOpen)}
-                className="relative p-2 rounded-xl text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                className="relative p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
                 title="Notifications"
+                aria-label="View notifications"
               >
                 <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-zinc-950 animate-pulse" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#07070a] animate-pulse" />
                 )}
               </button>
 
               {isNotifOpen && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-4 z-50 animate-in fade-in zoom-in-95">
-                  <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
-                    <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                      <Bell className="w-4 h-4 text-indigo-500" /> Notifications & Notices
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 futuristic-card rounded-2xl p-4 z-50 animate-in fade-in zoom-in-95">
+                  <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Bell className="w-4 h-4 text-indigo-400" /> Notifications & Notices
                     </h3>
                     <div className="flex items-center gap-2">
                       {(currentUser?.role === "admin" || currentUser?.role === "class_admin") && (
@@ -321,12 +319,12 @@ export default function Navbar() {
                             setIsNotifOpen(false);
                             setIsAnnounceModalOpen(true);
                           }}
-                          className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/70 border border-purple-200 dark:border-purple-800 px-2 py-0.5 rounded-lg flex items-center gap-1 hover:bg-purple-100 transition-colors"
+                          className="text-[10px] font-bold text-purple-300 bg-purple-950/70 border border-purple-500/30 px-2 py-0.5 rounded-lg flex items-center gap-1 hover:bg-purple-900 transition-colors"
                         >
                           <Megaphone className="w-3 h-3" /> Post Notice
                         </button>
                       )}
-                      <span className="text-xs text-zinc-400">{notifications.length}</span>
+                      <span className="text-xs text-zinc-500 font-mono">{notifications.length}</span>
                     </div>
                   </div>
                   <div className="mt-3 space-y-2.5 max-h-72 overflow-y-auto">
@@ -342,34 +340,34 @@ export default function Navbar() {
                           }}
                           className={`p-3 rounded-xl border transition-all cursor-pointer ${
                             n.isRead
-                              ? "bg-zinc-50 dark:bg-zinc-800/40 border-zinc-100 dark:border-zinc-800 text-zinc-500"
+                              ? "bg-white/[0.02] border-white/5 text-zinc-500"
                               : n.type === "danger"
-                              ? "bg-rose-50/60 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/50 text-zinc-800 dark:text-zinc-200"
+                              ? "bg-rose-950/30 border-rose-500/30 text-zinc-200"
                               : n.authorRole
-                              ? "bg-purple-50/50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900/50 text-zinc-800 dark:text-zinc-200"
-                              : "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-900/50 text-zinc-800 dark:text-zinc-200"
+                              ? "bg-purple-950/30 border-purple-500/30 text-zinc-200"
+                              : "bg-indigo-950/30 border-indigo-500/30 text-zinc-200"
                           }`}
                         >
                           <div className="flex items-center justify-between mb-1 gap-2">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-xs font-bold">{n.title}</span>
+                              <span className="text-xs font-bold text-white">{n.title}</span>
                               {n.authorRole && (
                                 <span
                                   className={`text-[8px] font-black uppercase px-1.5 py-0.2 rounded ${
                                     n.authorRole === "admin"
-                                      ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
-                                      : "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
+                                      ? "bg-indigo-950 text-indigo-300 border border-indigo-500/30"
+                                      : "bg-purple-950 text-purple-300 border border-purple-500/30"
                                   }`}
                                 >
                                   {n.authorRole === "admin" ? "University Admin" : "Class CR"}
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-zinc-400 shrink-0">{n.timestamp}</span>
+                            <span className="text-[10px] text-zinc-500 shrink-0 font-mono">{n.timestamp}</span>
                           </div>
-                          <p className="text-xs leading-relaxed">{n.message}</p>
+                          <p className="text-xs text-zinc-300 leading-relaxed">{n.message}</p>
                           {n.authorName && (
-                            <div className="text-[9px] text-zinc-400 mt-1 font-medium">
+                            <div className="text-[9px] text-zinc-500 mt-1 font-mono">
                               By {n.authorName}
                             </div>
                           )}
@@ -378,15 +376,15 @@ export default function Navbar() {
                     )}
                   </div>
 
-                  <div className="pt-2.5 mt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs">
+                  <div className="pt-2.5 mt-2 border-t border-white/[0.06] flex items-center justify-between text-xs">
                     <Link
                       href="/notifications"
                       onClick={() => setIsNotifOpen(false)}
-                      className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 flex items-center gap-1 transition-colors"
+                      className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
                     >
-                      <Bell className="w-3 h-3" /> Push & Actionable Settings &rarr;
+                      <Bell className="w-3 h-3" /> Push Notification Settings &rarr;
                     </Link>
-                    <span className="text-[10px] text-zinc-400 font-mono">5-min window</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">5-min window</span>
                   </div>
                 </div>
               )}
@@ -397,7 +395,7 @@ export default function Navbar() {
               <>
                 <button
                   onClick={() => setIsProfileModalOpen(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-700 bg-zinc-50 dark:bg-zinc-900 transition-all text-left group"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 hover:border-indigo-500/40 bg-zinc-900/80 transition-all text-left group"
                 >
                   <div
                     className={`w-7 h-7 rounded-lg font-bold flex items-center justify-center text-xs shadow-sm text-white ${
@@ -411,20 +409,20 @@ export default function Navbar() {
                     {currentUser.fullName.charAt(0)}
                   </div>
                   <div className="hidden sm:block">
-                    <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex items-center gap-1">
+                    <div className="text-xs font-bold text-white group-hover:text-indigo-400 transition-colors flex items-center gap-1">
                       <span>{currentUser.fullName}</span>
                       {currentUser.role === "admin" && (
-                        <span className="text-[9px] font-black uppercase px-1 py-0.2 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+                        <span className="text-[9px] font-black uppercase px-1 py-0.2 rounded bg-indigo-950 text-indigo-300 border border-indigo-500/30">
                           Admin
                         </span>
                       )}
                       {currentUser.role === "class_admin" && (
-                        <span className="text-[9px] font-black uppercase px-1 py-0.2 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
+                        <span className="text-[9px] font-black uppercase px-1 py-0.2 rounded bg-purple-950 text-purple-300 border border-purple-500/30">
                           Class CR
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-zinc-500">
+                    <div className="text-[10px] text-zinc-400 font-mono">
                       {currentUser.branchCode} {currentUser.section} &bull; {currentUser.batch}
                     </div>
                   </div>
@@ -433,7 +431,7 @@ export default function Navbar() {
                 {/* Logout Button */}
                 <button
                   onClick={logoutUser}
-                  className="p-2 rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                  className="p-2 rounded-xl text-zinc-500 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
                   title="Sign Out"
                 >
                   <LogOut className="w-4 h-4" />
@@ -442,7 +440,7 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/login"
-                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shadow-sm"
+                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center gap-1.5 shadow-sm"
               >
                 <LogIn className="w-4 h-4" /> Log In
               </Link>
@@ -452,7 +450,7 @@ export default function Navbar() {
             <button
               ref={mobileToggleBtnRef}
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="xl:hidden p-2 rounded-xl text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              className="xl:hidden p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5"
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -463,7 +461,7 @@ export default function Navbar() {
         {isMobileMenuOpen && (
           <div
             ref={mobileMenuRef}
-            className="xl:hidden border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 pt-2 pb-4 space-y-1"
+            className="xl:hidden border-b border-white/[0.06] bg-[#07070a]/95 backdrop-blur-xl px-4 pt-2 pb-4 space-y-1"
           >
             {navLinks.map((link) => {
               const Icon = link.icon;
@@ -475,8 +473,8 @@ export default function Navbar() {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                     isActive
-                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-300 font-bold"
-                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                      ? "bg-white/10 text-white font-bold"
+                      : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
                   }`}
                 >
                   <Icon className="w-4 h-4" />

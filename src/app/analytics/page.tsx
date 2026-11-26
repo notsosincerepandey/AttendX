@@ -38,6 +38,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
+import RadialNavWheel from "@/components/RadialNavWheel";
 
 const COLORS = ["#10b981", "#f59e0b", "#ef4444"];
 
@@ -109,9 +110,9 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <div className="space-y-8 max-w-6xl mx-auto pb-16">
       {/* Title */}
-      <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="futuristic-card p-6 rounded-2xl border border-white/[0.08] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white flex items-center gap-2.5">
             <Sparkles className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
@@ -298,6 +299,8 @@ export default function AnalyticsPage() {
           ))}
         </div>
       </div>
+      {/* Floating Radial Navigation Wheel */}
+      <RadialNavWheel variant="floating" />
     </div>
   );
 }

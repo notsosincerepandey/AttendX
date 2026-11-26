@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import RadialNavWheel from "@/components/RadialNavWheel";
+
 export default function SmartCalculatorPage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -150,43 +152,43 @@ export default function SmartCalculatorPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-8 max-w-5xl mx-auto pb-16">
       {/* Page Title */}
-      <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="futuristic-card p-6 rounded-2xl border border-white/[0.08] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white flex items-center gap-2.5">
-            <Calculator className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+          <h1 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
+            <Calculator className="w-6 h-6 text-indigo-400" />
             Smart Attendance Calculator
           </h1>
-          <p className="text-xs text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Mathematically precise safe bunk limit predictions and consecutive attendance recovery roadmaps for MMMUT 75% cutoff.
           </p>
         </div>
 
-        <div className="px-3.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+        <div className="px-3.5 py-1.5 rounded-xl bg-indigo-950/80 border border-indigo-500/30 text-xs font-bold text-indigo-300">
           Target: {targetPercentage}% Cutoff
         </div>
       </div>
 
       {/* Simulator Section */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 sm:p-8 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+      <div className="futuristic-card rounded-2xl p-6 sm:p-8 border border-white/[0.08] shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/[0.06]">
           <div>
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-              <Sliders className="w-5 h-5 text-indigo-500" />
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Sliders className="w-5 h-5 text-indigo-400" />
               Interactive What-If Simulator
             </h2>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-zinc-400">
               See what happens to your percentage under different future attendance scenarios.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-500 font-medium">Select Scope:</span>
+            <span className="text-xs text-zinc-400 font-medium">Select Scope:</span>
             <select
               value={selectedSubjectCode}
               onChange={(e) => setSelectedSubjectCode(e.target.value)}
-              className="px-3 py-1.5 text-xs font-bold bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="px-3 py-1.5 text-xs font-bold bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="OVERALL">All Subjects Combined</option>
               {stats.subjects.map((s) => (
@@ -200,28 +202,28 @@ export default function SmartCalculatorPage() {
 
         {/* Current vs Simulated Comparison Bar */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/60 text-center">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-center">
+            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
               Current Baseline
             </span>
-            <div className="text-3xl font-black text-zinc-900 dark:text-white mt-1">
+            <div className="text-3xl font-black text-white mt-1 font-mono">
               {currentPercentage}%
             </div>
-            <p className="text-xs text-zinc-500 mt-1">
+            <p className="text-xs text-zinc-400 mt-1 font-mono">
               {currentAttended} attended / {currentConducted} conducted
             </p>
           </div>
 
-          <div className="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-center md:col-span-2 flex flex-col justify-center">
+          <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-500/20 text-center md:col-span-2 flex flex-col justify-center">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 uppercase tracking-wider">
+              <span className="text-xs font-bold text-indigo-200 uppercase tracking-wider">
                 Predicted Attendance After Scenario
               </span>
               <span
                 className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                   simulatedPct >= targetPercentage
-                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                    : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                    ? "bg-emerald-950 text-emerald-300 border border-emerald-500/30"
+                    : "bg-rose-950 text-rose-300 border border-rose-500/30"
                 }`}
               >
                 {simulatedPct >= targetPercentage ? "Eligible" : "Attendance Shortage"}
@@ -229,14 +231,14 @@ export default function SmartCalculatorPage() {
             </div>
 
             <div className="flex items-baseline justify-center gap-3 my-1">
-              <span className="text-4xl font-black text-indigo-700 dark:text-indigo-300">
+              <span className="text-4xl font-black text-indigo-300 font-mono">
                 {simulatedPct}%
               </span>
               <span
                 className={`text-sm font-bold flex items-center gap-1 ${
                   simulatedPct >= currentPercentage
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-rose-600 dark:text-rose-400"
+                    ? "text-emerald-400"
+                    : "text-rose-400"
                 }`}
               >
                 {simulatedPct >= currentPercentage ? (
@@ -346,13 +348,13 @@ export default function SmartCalculatorPage() {
       </div>
 
       {/* Subject-Wise Safe Bunk & Recovery Planner Table */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden p-6">
-        <div className="pb-4 border-b border-zinc-100 dark:border-zinc-800">
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+      <div className="futuristic-card rounded-2xl border border-white/[0.08] shadow-sm overflow-hidden p-6">
+        <div className="pb-4 border-b border-white/[0.06]">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-emerald-400" />
             Subject-Wise Safe Absences & Recovery Analysis
           </h2>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-zinc-400">
             Calculated using exact mathematical formulas without averaging percentages.
           </p>
         </div>
@@ -360,7 +362,7 @@ export default function SmartCalculatorPage() {
         <div className="mt-5 overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-zinc-200 dark:border-zinc-700 text-zinc-500 font-bold uppercase tracking-wider">
+              <tr className="border-b border-white/10 text-zinc-400 font-bold uppercase tracking-wider font-mono">
                 <th className="py-3 px-3">Subject</th>
                 <th className="py-3 px-3">Category</th>
                 <th className="py-3 px-3 text-center">Attended / Total</th>
@@ -370,33 +372,33 @@ export default function SmartCalculatorPage() {
                 <th className="py-3 px-3 text-center">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tbody className="divide-y divide-white/[0.04]">
               {stats.subjects.map((s) => (
-                <tr key={s.subjectCode} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
+                <tr key={s.subjectCode} className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-3 px-3">
-                    <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                    <div className="font-mono font-bold text-indigo-400">
                       {s.subjectCode}
                     </div>
-                    <div className="font-semibold text-zinc-800 dark:text-zinc-200 line-clamp-1">
+                    <div className="font-semibold text-zinc-200 line-clamp-1">
                       {s.subjectName}
                     </div>
                   </td>
                   <td className="py-3 px-3">
-                    <span className="px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium">
+                    <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 font-medium">
                       Combined
                     </span>
                   </td>
-                  <td className="py-3 px-3 text-center font-medium">
+                  <td className="py-3 px-3 text-center font-mono text-zinc-300">
                     {s.combined.attended} / {s.combined.conducted}
                   </td>
                   <td className="py-3 px-3 text-center">
                     <span
-                      className={`font-black text-sm ${
+                      className={`font-mono font-black text-sm ${
                         s.combined.status === "safe"
-                          ? "text-emerald-600 dark:text-emerald-400"
+                          ? "text-emerald-400"
                           : s.combined.status === "warning"
-                          ? "text-amber-600 dark:text-amber-400"
-                          : "text-rose-600 dark:text-rose-400"
+                          ? "text-amber-400"
+                          : "text-rose-400"
                       }`}
                     >
                       {s.combined.conducted === 0 ? "N/A" : `${s.combined.percentage}%`}
@@ -404,37 +406,37 @@ export default function SmartCalculatorPage() {
                   </td>
                   <td className="py-3 px-3 text-center">
                     {s.combined.safeAbsences > 0 ? (
-                      <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                      <span className="inline-flex items-center gap-1 font-bold text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-500/20 font-mono">
                         +{s.combined.safeAbsences} classes
                       </span>
                     ) : (
-                      <span className="text-zinc-400 font-medium">0</span>
+                      <span className="text-zinc-500 font-mono">0</span>
                     )}
                   </td>
                   <td className="py-3 px-3 text-center">
                     {s.combined.recoveryNeeded75 > 0 ? (
-                      <span className="inline-flex items-center gap-1 font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-800">
+                      <span className="inline-flex items-center gap-1 font-bold text-rose-400 bg-rose-950/60 px-2.5 py-1 rounded-lg border border-rose-500/20 font-mono">
                         {s.combined.recoveryNeeded75} classes
                       </span>
                     ) : (
-                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                      <span className="text-emerald-400 font-medium">
                         Above 75% &check;
                       </span>
                     )}
                   </td>
                   <td className="py-3 px-3 text-center">
                     {s.combined.status === "safe" && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-500/20">
                         Safe
                       </span>
                     )}
                     {s.combined.status === "warning" && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-950 text-amber-300 border border-amber-500/20">
                         Warning
                       </span>
                     )}
                     {s.combined.status === "danger" && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-950 text-rose-300 border border-rose-500/20">
                         Shortage
                       </span>
                     )}
@@ -447,37 +449,40 @@ export default function SmartCalculatorPage() {
       </div>
 
       {/* Formula Explanation Card */}
-      <div className="p-6 bg-gradient-to-br from-zinc-50 to-indigo-50/30 dark:from-zinc-900 dark:to-indigo-950/20 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-700 dark:text-zinc-300 space-y-3">
-        <h3 className="font-bold text-sm text-zinc-900 dark:text-white flex items-center gap-2">
-          <Info className="w-4 h-4 text-indigo-500" />
+      <div className="futuristic-card p-6 rounded-2xl border border-white/[0.08] text-xs text-zinc-400 space-y-3">
+        <h3 className="font-bold text-sm text-white flex items-center gap-2">
+          <Info className="w-4 h-4 text-indigo-400" />
           University Attendance Mathematics & Proofs
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-3 bg-white dark:bg-zinc-800/80 rounded-xl border border-zinc-200/80 dark:border-zinc-700 space-y-1">
-            <span className="font-bold text-indigo-600 dark:text-indigo-400">
+          <div className="p-3 bg-white/[0.02] rounded-xl border border-white/5 space-y-1">
+            <span className="font-bold text-indigo-400">
               1. Safe Absences Formula:
             </span>
-            <p className="font-mono text-[11px] bg-zinc-100 dark:bg-zinc-900 p-2 rounded">
+            <p className="font-mono text-[11px] bg-zinc-900 text-zinc-300 p-2 rounded border border-white/5">
               max_absences = floor((Attended - 0.75 * Conducted) / 0.75)
             </p>
-            <p className="text-[11px] text-zinc-500">
-              Guarantees your attendance percentage will remain strictly &gt;= 75% after missing that many classes.
+            <p className="text-[11px] text-zinc-400">
+              Guarantees attendance percentage remains strictly &gt;= 75% after missing that many classes.
             </p>
           </div>
 
-          <div className="p-3 bg-white dark:bg-zinc-800/80 rounded-xl border border-zinc-200/80 dark:border-zinc-700 space-y-1">
-            <span className="font-bold text-indigo-600 dark:text-indigo-400">
+          <div className="p-3 bg-white/[0.02] rounded-xl border border-white/5 space-y-1">
+            <span className="font-bold text-indigo-400">
               2. Consecutive Attendance Recovery Formula:
             </span>
-            <p className="font-mono text-[11px] bg-zinc-100 dark:bg-zinc-900 p-2 rounded">
+            <p className="font-mono text-[11px] bg-zinc-900 text-zinc-300 p-2 rounded border border-white/5">
               classes_needed = ceil((0.75 * Conducted - Attended) / (1 - 0.75))
             </p>
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-[11px] text-zinc-400">
               Solves (Attended + x) / (Conducted + x) &gt;= 0.75 for exact consecutive lecture attendance required.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Floating Radial Navigation Wheel */}
+      <RadialNavWheel variant="floating" />
     </div>
   );
 }

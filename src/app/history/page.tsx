@@ -29,6 +29,7 @@ import {
   FileText,
   Calendar,
 } from "lucide-react";
+import RadialNavWheel from "@/components/RadialNavWheel";
 
 export default function AttendanceHistoryPage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -169,9 +170,9 @@ export default function AttendanceHistoryPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto pb-16">
       {/* Header */}
-      <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="futuristic-card p-6 rounded-2xl border border-white/[0.08] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white flex items-center gap-2.5">
             <History className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
@@ -478,6 +479,8 @@ export default function AttendanceHistoryPage() {
           </div>
         </div>
       )}
+      {/* Floating Radial Navigation Wheel */}
+      <RadialNavWheel variant="floating" />
     </div>
   );
 }

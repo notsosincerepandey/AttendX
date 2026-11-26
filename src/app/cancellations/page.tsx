@@ -21,6 +21,7 @@ import {
   Info,
   AlertCircle,
 } from "lucide-react";
+import RadialNavWheel from "@/components/RadialNavWheel";
 
 export default function CancellationsPage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -189,9 +190,9 @@ export default function CancellationsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Header */}
-      <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="futuristic-card p-6 rounded-2xl border border-white/[0.08] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white flex items-center gap-2.5">
             <AlertTriangle className="w-6 h-6 text-amber-500" />
@@ -450,6 +451,8 @@ export default function CancellationsPage() {
           </div>
         </div>
       )}
+      {/* Floating Radial Navigation Wheel */}
+      <RadialNavWheel variant="floating" />
     </div>
   );
 }

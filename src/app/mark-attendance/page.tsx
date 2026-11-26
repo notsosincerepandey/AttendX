@@ -34,6 +34,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import Link from "next/link";
+import RadialNavWheel from "@/components/RadialNavWheel";
 
 export default function MarkAttendancePage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -146,32 +147,32 @@ export default function MarkAttendancePage() {
   const uniqueLabSubjects = Array.from(new Set(labSlots.map((s) => s.subjectCode)));
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto pb-16">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 futuristic-card p-6 rounded-2xl border border-white/[0.08] shadow-sm">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Link
               href="/"
-              className="text-xs text-zinc-500 hover:text-indigo-600 flex items-center gap-1 font-medium"
+              className="text-xs text-zinc-400 hover:text-indigo-400 flex items-center gap-1 font-medium transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
             </Link>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white flex items-center gap-2">
-            <CheckCircle2 className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+          <h1 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
+            <CheckCircle2 className="w-6 h-6 text-indigo-400" />
             Daily Attendance Marking
           </h1>
-          <p className="text-xs text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-400 mt-1">
             Mark your attendance period by period. Every individual lecture or lab period counts as 1 attendance unit.
           </p>
         </div>
 
         {/* Date Navigator */}
-        <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 p-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div className="flex items-center gap-2 bg-zinc-900/90 p-1.5 rounded-xl border border-white/10">
           <button
             onClick={() => changeDateByDays(-1)}
-            className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
+            className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white"
             title="Previous Day"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -180,11 +181,11 @@ export default function MarkAttendancePage() {
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-transparent text-xs font-bold text-zinc-800 dark:text-zinc-200 focus:outline-none px-1"
+            className="bg-transparent text-xs font-bold text-zinc-200 focus:outline-none px-1"
           />
           <button
             onClick={() => changeDateByDays(1)}
-            className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
+            className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white"
             title="Next Day"
           >
             <ChevronRight className="w-4 h-4" />
@@ -415,9 +416,9 @@ export default function MarkAttendancePage() {
       </div>
 
       {/* Rules Notice */}
-      <div className="p-4 bg-zinc-100 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
-        <div className="font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
-          <ShieldAlert className="w-4 h-4 text-amber-500" /> Attendance Calculation Protocol:
+      <div className="p-4 futuristic-card rounded-xl border border-white/5 text-xs text-zinc-400 space-y-1">
+        <div className="font-bold text-zinc-200 flex items-center gap-1.5">
+          <ShieldAlert className="w-4 h-4 text-amber-400" /> Attendance Calculation Protocol:
         </div>
         <p>
           &bull; <b>Present:</b> +1 Attended, +1 Conducted. &bull; <b>Absent:</b> +0 Attended, +1 Conducted. &bull; <b>Cancelled:</b> Excluded (+0 Attended, +0 Conducted).
@@ -426,6 +427,9 @@ export default function MarkAttendancePage() {
           &bull; Multi-period laboratories (e.g. 4 consecutive periods) generate 4 discrete attendance units. Unmarked periods automatically mark as Absent after the cutoff deadline.
         </p>
       </div>
+
+      {/* Floating Radial Navigation Wheel */}
+      <RadialNavWheel variant="floating" />
     </div>
   );
 }

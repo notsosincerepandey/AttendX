@@ -90,26 +90,27 @@ export default function StudentProfileModal({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 overflow-y-auto"
     >
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 max-w-xl w-full p-6 relative">
+      <div className="futuristic-card rounded-2xl shadow-2xl border border-white/10 max-w-xl w-full p-6 relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1 rounded-lg"
+          className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-lg"
+          aria-label="Close Profile Modal"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl text-indigo-600 dark:text-indigo-400">
+          <div className="p-3 bg-indigo-950/60 border border-indigo-500/20 rounded-xl text-indigo-400">
             <School className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+            <h2 className="text-xl font-bold text-white tracking-tight">
               Student Profile & Timetable Mapping
             </h2>
-            <p className="text-xs text-zinc-500">
-              Select your official MMMUT First Year branch, section & practical batch
+            <p className="text-xs text-zinc-400">
+              Verified MMMUT Academic Identity & Timetable Mapping
             </p>
           </div>
         </div>
