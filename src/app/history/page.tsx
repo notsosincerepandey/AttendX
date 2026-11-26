@@ -443,12 +443,8 @@ export default function AttendanceHistoryPage() {
       <ExportAttendanceModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        records={filteredRecords}
-        filterDescription={
-          filterSubject !== "ALL" || filterStatus !== "ALL" || filterCategory !== "ALL" || searchQuery
-            ? `Filtered (${filteredRecords.length} of ${records.length} records)`
-            : `All records (${records.length} total)`
-        }
+        records={records}
+        timetable={timetable}
         studentName={profile.fullName}
       />
 

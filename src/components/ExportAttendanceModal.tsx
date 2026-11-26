@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { AttendanceRecord } from "@/types";
+import React, { useState, useEffect, useMemo } from "react";
+import { AttendanceRecord, UniversityTimetable } from "@/types";
 import {
-  exportAttendanceToXLSX,
-  exportAttendanceToCSV,
-  prepareAttendanceExportData,
-  generateExportFilename,
+  exportAttendanceMatrixToXLSX,
+  exportAttendanceMatrixToCSV,
+  prepareAttendanceMatrixData,
+  generateMatrixFilename,
+  formatDateSlash,
 } from "@/lib/attendanceExport";
 import {
   FileSpreadsheet,
@@ -18,13 +19,17 @@ import {
   Loader2,
   Calendar,
   Filter,
+  CheckSquare,
+  Square,
+  Layers,
+  ChevronRight,
 } from "lucide-react";
 
 export interface ExportAttendanceModalProps {
   isOpen: boolean;
   onClose: () => void;
   records: AttendanceRecord[];
-  filterDescription?: string;
+  timetable?: UniversityTimetable | null;
   studentName?: string;
 }
 
@@ -34,15 +39,59 @@ export default function ExportAttendanceModal({
   isOpen,
   onClose,
   records,
-  filterDescription,
+  timetable,
   studentName,
 }: ExportAttendanceModalProps) {
+  // Extract all unique subjects present in student records
+  const availableSubjects = useMemo(() => {
+    const map = new Map<string, { code: string; name: string; count: number }>();
+    for (const r of records) {
+      const code = (r.subjectCode || "UNKNOWN").trim().toUpperCase();
+      const name = r.subjectName || code;
+      if (!map.has(code)) {
+        map.set(code, { code, name, count: 0 });
+      }
+      map.get(code)!.count += 1;
+    }
+    return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
+  }, [records]);
+
+  // Extract min and max dates across all records
+  const { minDateAvailable, maxDateAvailable } = useMemo(() => {
+    const dates = records
+      .map((r) => (r.date ? r.date.split("T")[0] : ""))
+      .filter(Boolean)
+      .sort();
+    return {
+      minDateAvailable: dates[0] || "",
+      maxDateAvailable: dates[dates.length - 1] || "",
+    };
+  }, [records]);
+
+  // State
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>("xlsx");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successFilename, setSuccessFilename] = useState<string | null>(null);
 
-  // Auto-dismiss modal on Escape key
+  // Initialize filters when opened
+  useEffect(() => {
+    if (isOpen) {
+      setErrorMessage(null);
+      setSuccessFilename(null);
+      setIsExporting(false);
+      // Default: full history range
+      setStartDate(minDateAvailable);
+      setEndDate(maxDateAvailable);
+      // Default: select all subjects
+      setSelectedSubjects(availableSubjects.map((s) => s.code));
+    }
+  }, [isOpen, minDateAvailable, maxDateAvailable, availableSubjects]);
+
+  // Escape key handler
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -54,24 +103,97 @@ export default function ExportAttendanceModal({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, isExporting, onClose]);
 
-  // Reset state when opened
-  useEffect(() => {
-    if (isOpen) {
-      setErrorMessage(null);
-      setSuccessFilename(null);
-      setIsExporting(false);
+  // Validation
+  const dateValidationError = useMemo(() => {
+    if (startDate && endDate && startDate > endDate) {
+      return "Start date cannot be after end date.";
     }
-  }, [isOpen]);
+    return null;
+  }, [startDate, endDate]);
+
+  // Prepare matrix data based on current selections
+  const matrixResult = useMemo(() => {
+    if (dateValidationError || selectedSubjects.length === 0) {
+      return {
+        matrixRows: [],
+        datesIncluded: [],
+        unmappedRecords: [],
+        totalRecordsMatched: 0,
+        presentCount: 0,
+        absentCount: 0,
+      };
+    }
+    return prepareAttendanceMatrixData(records, {
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      selectedSubjectCodes: selectedSubjects,
+      timetable,
+    });
+  }, [records, startDate, endDate, selectedSubjects, timetable, dateValidationError]);
+
+  const { matrixRows, datesIncluded, totalRecordsMatched, presentCount, absentCount } =
+    matrixResult;
+
+  const targetFilename = useMemo(() => {
+    return generateMatrixFilename(datesIncluded, selectedFormat);
+  }, [datesIncluded, selectedFormat]);
 
   if (!isOpen) return null;
 
-  const { rows } = prepareAttendanceExportData(records);
-  const previewRows = rows.slice(0, 3);
-  const targetFilename = generateExportFilename(records, selectedFormat);
+  // Preset Date Handlers
+  const handlePresetAll = () => {
+    setStartDate(minDateAvailable);
+    setEndDate(maxDateAvailable);
+  };
+
+  const handlePresetLast30Days = () => {
+    const end = maxDateAvailable || new Date().toISOString().slice(0, 10);
+    const d = new Date(end);
+    d.setDate(d.getDate() - 30);
+    const start = d.toISOString().slice(0, 10);
+    setStartDate(start < minDateAvailable ? minDateAvailable : start);
+    setEndDate(end);
+  };
+
+  const handlePresetLast7Days = () => {
+    const end = maxDateAvailable || new Date().toISOString().slice(0, 10);
+    const d = new Date(end);
+    d.setDate(d.getDate() - 7);
+    const start = d.toISOString().slice(0, 10);
+    setStartDate(start < minDateAvailable ? minDateAvailable : start);
+    setEndDate(end);
+  };
+
+  // Subject Selection Handlers
+  const handleToggleSubject = (code: string) => {
+    setSelectedSubjects((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  };
+
+  const handleSelectAllSubjects = () => {
+    setSelectedSubjects(availableSubjects.map((s) => s.code));
+  };
+
+  const handleClearAllSubjects = () => {
+    setSelectedSubjects([]);
+  };
 
   const handleExport = async () => {
-    if (records.length === 0) {
-      setErrorMessage("No attendance records to export. Please adjust your filters or mark attendance first.");
+    if (dateValidationError) {
+      setErrorMessage(dateValidationError);
+      return;
+    }
+
+    if (selectedSubjects.length === 0) {
+      setErrorMessage("Please select at least one subject to include in the export.");
+      return;
+    }
+
+    if (matrixRows.length === 0) {
+      setErrorMessage(
+        "No attendance records match the selected date range and subject filter."
+      );
       return;
     }
 
@@ -80,37 +202,48 @@ export default function ExportAttendanceModal({
       setErrorMessage(null);
 
       let filename = "";
+      const filterOpts = {
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        selectedSubjectCodes: selectedSubjects,
+        timetable,
+      };
+
       if (selectedFormat === "xlsx") {
-        filename = await exportAttendanceToXLSX(records);
+        filename = await exportAttendanceMatrixToXLSX(records, filterOpts);
       } else {
-        filename = exportAttendanceToCSV(records);
+        filename = exportAttendanceMatrixToCSV(records, filterOpts);
       }
 
       setSuccessFilename(filename);
 
-      // Brief pause for success state before closing
       setTimeout(() => {
         onClose();
       }, 1400);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to generate export file. Please try again.";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Failed to generate attendance matrix. Please try again.";
       setErrorMessage(msg);
     } finally {
       setIsExporting(false);
     }
   };
 
+  const previewRow = matrixRows[0];
+
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-labelledby="export-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in"
+      aria-labelledby="matrix-export-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isExporting) onClose();
       }}
     >
-      <div className="futuristic-card w-full max-w-lg p-6 sm:p-7 rounded-3xl border border-white/[0.08] shadow-2xl space-y-5 text-left relative">
+      <div className="futuristic-card w-full max-w-2xl p-5 sm:p-6 rounded-3xl border border-white/[0.08] shadow-2xl space-y-5 text-left relative my-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -122,182 +255,275 @@ export default function ExportAttendanceModal({
         </button>
 
         {/* Modal Header */}
-        <div className="space-y-1.5 pr-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
-            <Download className="w-3.5 h-3.5" />
-            <span>Attendance Report Export</span>
+        <div className="space-y-1 pr-8">
+          <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
+            <Layers className="w-3.5 h-3.5" />
+            <span>8-Period Attendance Matrix</span>
           </div>
           <h2
-            id="export-modal-title"
+            id="matrix-export-title"
             className="text-lg sm:text-xl font-black text-white tracking-tight"
           >
-            Choose Export Format
+            Export Attendance Sheet
           </h2>
-          <p className="text-xs text-zinc-400 leading-relaxed">
-            Download your structured attendance record. Select the format that best fits your workflow.
+          <p className="text-xs text-zinc-400">
+            Generate an official 9-column schedule sheet (Date + Period 1–8) with custom date and subject filtering.
           </p>
         </div>
 
-        {/* Record Scope Badge */}
-        <div className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 text-zinc-300">
-            <Calendar className="w-4 h-4 text-indigo-400 shrink-0" />
-            <span className="font-medium">
-              {records.length} {records.length === 1 ? "record" : "records"} selected
-            </span>
+        {/* Filters Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 1. Date Range Filter */}
+          <div className="p-3.5 bg-white/[0.02] border border-white/[0.06] rounded-2xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                Date Range
+              </span>
+              <div className="flex items-center gap-1 text-[10px]">
+                <button
+                  type="button"
+                  onClick={handlePresetAll}
+                  className="px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white transition-colors"
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePresetLast30Days}
+                  className="px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white transition-colors"
+                >
+                  30 Days
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePresetLast7Days}
+                  className="px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white transition-colors"
+                >
+                  7 Days
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <label className="block text-[10px] text-zinc-400 mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  min={minDateAvailable}
+                  max={maxDateAvailable}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-2.5 py-1.5 bg-black/40 border border-white/[0.08] rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-zinc-400 mb-1">End Date</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={minDateAvailable}
+                  max={maxDateAvailable}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-2.5 py-1.5 bg-black/40 border border-white/[0.08] rounded-xl text-white text-xs focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+            </div>
+
+            {dateValidationError && (
+              <p className="text-[11px] text-rose-400 font-semibold">{dateValidationError}</p>
+            )}
           </div>
-          {filterDescription && (
-            <span className="text-[11px] text-zinc-400 font-mono flex items-center gap-1">
-              <Filter className="w-3 h-3 text-zinc-500" />
-              {filterDescription}
-            </span>
-          )}
+
+          {/* 2. Subject Multi-Select Filter */}
+          <div className="p-3.5 bg-white/[0.02] border border-white/[0.06] rounded-2xl space-y-2.5 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                <Filter className="w-3.5 h-3.5 text-indigo-400" />
+                Subjects ({selectedSubjects.length}/{availableSubjects.length})
+              </span>
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <button
+                  type="button"
+                  onClick={handleSelectAllSubjects}
+                  className="text-indigo-400 hover:text-indigo-300 font-semibold"
+                >
+                  Select All
+                </button>
+                <span className="text-zinc-600">&bull;</span>
+                <button
+                  type="button"
+                  onClick={handleClearAllSubjects}
+                  className="text-zinc-400 hover:text-zinc-200 font-semibold"
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-24 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+              {availableSubjects.map((subj) => {
+                const isSelected = selectedSubjects.includes(subj.code);
+                return (
+                  <button
+                    key={subj.code}
+                    type="button"
+                    onClick={() => handleToggleSubject(subj.code)}
+                    className={`w-full px-2.5 py-1 rounded-lg text-left text-xs flex items-center justify-between transition-colors ${
+                      isSelected
+                        ? "bg-indigo-500/15 text-white border border-indigo-500/30 font-medium"
+                        : "bg-white/[0.02] text-zinc-400 hover:bg-white/[0.05] border border-transparent"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      {isSelected ? (
+                        <CheckSquare className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                      ) : (
+                        <Square className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+                      )}
+                      <span className="truncate">{subj.code} - {subj.name}</span>
+                    </div>
+                    <span className="text-[10px] text-zinc-500 font-mono ml-2 shrink-0">
+                      {subj.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Format Selection Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Excel Format Option */}
+          {/* Excel Format */}
           <button
             type="button"
             onClick={() => setSelectedFormat("xlsx")}
             disabled={isExporting}
-            className={`p-4 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${
+            className={`p-3.5 rounded-2xl border text-left transition-all relative flex items-center gap-3.5 ${
               selectedFormat === "xlsx"
                 ? "bg-emerald-500/10 border-emerald-500/40 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500/30"
                 : "bg-white/[0.02] border-white/[0.06] hover:border-white/20 hover:bg-white/[0.04]"
             }`}
           >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  <FileSpreadsheet className="w-5 h-5" />
-                </div>
-                {selectedFormat === "xlsx" && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Selected
-                  </span>
-                )}
-              </div>
-              <div>
-                <h3 className="text-xs font-bold text-white">Excel Workbook</h3>
-                <span className="text-[10px] font-mono text-emerald-400 font-semibold block">
-                  .xlsx
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-400 leading-normal">
-                Formatted spreadsheet with frozen header row, autofilters, and column auto-sizing.
-              </p>
+            <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+              <FileSpreadsheet className="w-5 h-5" />
             </div>
-            <div className="mt-3 pt-2 border-t border-white/[0.06] text-[10px] text-zinc-400 flex items-center justify-between">
-              <span>Best for MS Excel & Google Sheets</span>
+            <div className="space-y-0.5 truncate">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-white">Excel Workbook</span>
+                <span className="text-[10px] font-mono text-emerald-400 font-bold">.xlsx</span>
+              </div>
+              <p className="text-[11px] text-zinc-400 truncate">
+                Red-highlighted absent cells, frozen headers, autofilters.
+              </p>
             </div>
           </button>
 
-          {/* CSV Format Option */}
+          {/* CSV Format */}
           <button
             type="button"
             onClick={() => setSelectedFormat("csv")}
             disabled={isExporting}
-            className={`p-4 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${
+            className={`p-3.5 rounded-2xl border text-left transition-all relative flex items-center gap-3.5 ${
               selectedFormat === "csv"
                 ? "bg-cyan-500/10 border-cyan-500/40 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-500/30"
                 : "bg-white/[0.02] border-white/[0.06] hover:border-white/20 hover:bg-white/[0.04]"
             }`}
           >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                  <FileText className="w-5 h-5" />
-                </div>
-                {selectedFormat === "csv" && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                    Selected
-                  </span>
-                )}
-              </div>
-              <div>
-                <h3 className="text-xs font-bold text-white">CSV File</h3>
-                <span className="text-[10px] font-mono text-cyan-400 font-semibold block">
-                  .csv
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-400 leading-normal">
-                Lightweight universal comma-separated text table with UTF-8 BOM encoding.
-              </p>
+            <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shrink-0">
+              <FileText className="w-5 h-5" />
             </div>
-            <div className="mt-3 pt-2 border-t border-white/[0.06] text-[10px] text-zinc-400 flex items-center justify-between">
-              <span>Universal & developer-friendly</span>
+            <div className="space-y-0.5 truncate">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-white">CSV Plaintext</span>
+                <span className="text-[10px] font-mono text-cyan-400 font-bold">.csv</span>
+              </div>
+              <p className="text-[11px] text-zinc-400 truncate">
+                Universal 9-column UTF-8 CSV table with RFC 4180 escaping.
+              </p>
             </div>
           </button>
         </div>
 
-        {/* Live Structure Preview */}
-        {previewRows.length > 0 && (
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-[11px] text-zinc-400">
-              <span className="font-semibold text-zinc-300">Tabular Layout Preview</span>
-              <span className="font-mono text-[10px]">Date &bull; Subject &bull; Attendance</span>
-            </div>
-            <div className="bg-black/40 border border-white/[0.06] rounded-xl overflow-hidden text-[11px]">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-white/[0.08] text-zinc-400 bg-white/[0.02]">
-                    <th className="py-1.5 px-3 font-semibold">Date</th>
-                    <th className="py-1.5 px-3 font-semibold">Subject</th>
-                    <th className="py-1.5 px-3 font-semibold">Attendance</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.04] text-zinc-300 font-mono text-[10px]">
-                  {previewRows.map((row, i) => (
-                    <tr key={i}>
-                      <td className="py-1.5 px-3 text-zinc-400">{row.date}</td>
-                      <td className="py-1.5 px-3 text-white font-sans truncate max-w-[160px]">
-                        {row.subject}
-                      </td>
-                      <td className="py-1.5 px-3">
-                        <span
-                          className={`font-semibold ${
-                            row.attendance === "Present"
-                              ? "text-emerald-400"
-                              : row.attendance === "Absent"
-                              ? "text-rose-400"
-                              : "text-zinc-400"
+        {/* Matrix Scope & Live Structure Preview */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-semibold text-zinc-300 flex items-center gap-1.5">
+              <span>9-Column Matrix Structure</span>
+              <span className="text-zinc-500">&bull;</span>
+              <span className="text-zinc-400 font-normal">
+                {matrixRows.length} {matrixRows.length === 1 ? "day" : "days"} ({totalRecordsMatched} classes: {presentCount} Present, {absentCount} Absent)
+              </span>
+            </span>
+            <span className="font-mono text-[10px] text-zinc-500">
+              {targetFilename}
+            </span>
+          </div>
+
+          <div className="bg-black/50 border border-white/[0.06] rounded-2xl overflow-x-auto text-[10px]">
+            <table className="w-full text-center border-collapse">
+              <thead>
+                <tr className="border-b border-white/[0.08] text-zinc-400 bg-white/[0.02]">
+                  <th className="py-1.5 px-2 text-left font-semibold">Date</th>
+                  <th className="py-1.5 px-2 font-semibold">P1</th>
+                  <th className="py-1.5 px-2 font-semibold">P2</th>
+                  <th className="py-1.5 px-2 font-semibold">P3</th>
+                  <th className="py-1.5 px-2 font-semibold">P4</th>
+                  <th className="py-1.5 px-2 font-semibold">P5</th>
+                  <th className="py-1.5 px-2 font-semibold">P6</th>
+                  <th className="py-1.5 px-2 font-semibold">P7</th>
+                  <th className="py-1.5 px-2 font-semibold">P8</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.04] font-mono">
+                {previewRow ? (
+                  <tr>
+                    <td className="py-1.5 px-2 text-left font-bold text-zinc-300">
+                      {previewRow.date}
+                    </td>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((pNum) => {
+                      const val = (previewRow as any)[`period${pNum}`];
+                      const isAbsent = previewRow.hasAbsent[pNum];
+                      return (
+                        <td
+                          key={pNum}
+                          className={`py-1.5 px-1.5 whitespace-nowrap ${
+                            !val
+                              ? "text-zinc-700"
+                              : isAbsent
+                              ? "bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30 rounded"
+                              : "text-emerald-300"
                           }`}
                         >
-                          {row.attendance}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {rows.length > 3 && (
-                    <tr>
-                      <td colSpan={3} className="py-1 px-3 text-[10px] text-zinc-500 text-center font-sans">
-                        + {rows.length - 3} more records sorted by Date and Subject...
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                          {val || "—"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ) : (
+                  <tr>
+                    <td colSpan={9} className="py-4 text-center text-zinc-500 font-sans">
+                      No attendance classes match the active date and subject filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-
-        {/* Filename Preview */}
-        <div className="text-[11px] text-zinc-500 font-mono truncate">
-          File: <span className="text-zinc-300">{targetFilename}</span>
         </div>
 
-        {/* Success Feedback */}
+        {/* Success Alert */}
         {successFilename && (
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-emerald-300 flex items-center gap-2 animate-fade-in">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span className="font-semibold">
-              Export generated: <strong className="text-white">{successFilename}</strong>
+              Matrix successfully downloaded: <strong className="text-white">{successFilename}</strong>
             </span>
           </div>
         )}
 
-        {/* Error Feedback */}
+        {/* Error Alert */}
         {errorMessage && (
           <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-300 flex items-center justify-between gap-2 animate-fade-in">
             <div className="flex items-center gap-2">
@@ -326,7 +552,12 @@ export default function ExportAttendanceModal({
           <button
             type="button"
             onClick={handleExport}
-            disabled={isExporting || records.length === 0}
+            disabled={
+              isExporting ||
+              Boolean(dateValidationError) ||
+              selectedSubjects.length === 0 ||
+              matrixRows.length === 0
+            }
             className={`px-5 py-2 text-xs font-semibold text-white rounded-xl shadow-lg transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
               selectedFormat === "xlsx"
                 ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/25"
@@ -336,7 +567,7 @@ export default function ExportAttendanceModal({
             {isExporting ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Generating {selectedFormat === "xlsx" ? "Excel" : "CSV"}...</span>
+                <span>Exporting Matrix...</span>
               </>
             ) : successFilename ? (
               <>
