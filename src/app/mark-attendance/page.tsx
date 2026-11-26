@@ -17,6 +17,7 @@ import {
   saveStoredAttendance,
   getTodayDateStr,
 } from "@/lib/storage";
+import { getEffectiveSlotsForDate } from "@/lib/timetableOverrides";
 import {
   CheckCircle2,
   XCircle,
@@ -87,12 +88,8 @@ export default function MarkAttendancePage() {
   const currDateObj = new Date(selectedDate || getTodayDateStr());
   const selectedDayName = currDateObj.toLocaleDateString("en-US", { weekday: "long" });
 
-  // Get scheduled timetable slots for this day for this student's batch
-  const scheduledSlots = timetable.slots
-    .filter(
-      (s) => s.day === selectedDayName && (s.batch === "ALL" || s.batch === profile.batch)
-    )
-    .sort((a, b) => a.period - b.period);
+  // Get effective scheduled timetable slots for this specific date (including one-time extra classes)
+  const scheduledSlots = getEffectiveSlotsForDate(profile, selectedDate, { timetable });
 
   // Filter attendance records exist for this selected date
   const dayRecords = records.filter((r) => r.date === selectedDate);
@@ -101,16 +98,20 @@ export default function MarkAttendancePage() {
     slot: TimetableSlot,
     newStatus: "PRESENT" | "ABSENT" | "CANCELLED"
   ) => {
-    const existing = records.find(
-      (r) => r.date === selectedDate && r.period === slot.period && r.subjectCode === slot.subjectCode
-    );
+    const existing = records.find((r) => {
+      if (r.date !== selectedDate) return false;
+      if (slot.occurrenceId && r.occurrenceId) {
+        return r.occurrenceId === slot.occurrenceId;
+      }
+      return r.period === slot.period && r.subjectCode === slot.subjectCode;
+    });
 
     let updated: AttendanceRecord[];
     if (existing) {
       updated = updatePeriodAttendance(existing.id, newStatus);
     } else {
       const newRecord: AttendanceRecord = {
-        id: `att-${selectedDate}-p${slot.period}-${slot.subjectCode}`,
+        id: `att-${selectedDate}-p${slot.period}-${slot.subjectCode}${slot.occurrenceId ? `-${slot.occurrenceId}` : ""}`,
         studentId: profile.id,
         date: selectedDate,
         period: slot.period,
@@ -123,6 +124,9 @@ export default function MarkAttendancePage() {
         status: newStatus,
         markedAt: new Date().toISOString(),
         markedBy: "STUDENT",
+        isExtraClass: slot.isOneTime,
+        occurrenceId: slot.occurrenceId,
+        slotId: slot.id,
       };
       updated = [...records, newRecord];
       saveStoredAttendance(updated, profile.id);
@@ -299,14 +303,17 @@ export default function MarkAttendancePage() {
         ) : (
           <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {scheduledSlots.map((slot) => {
-              const record = dayRecords.find(
-                (r) => r.period === slot.period && r.subjectCode === slot.subjectCode
-              );
+              const record = dayRecords.find((r) => {
+                if (slot.occurrenceId && r.occurrenceId) {
+                  return r.occurrenceId === slot.occurrenceId;
+                }
+                return r.period === slot.period && r.subjectCode === slot.subjectCode;
+              });
               const status = record?.status || "PENDING";
 
               return (
                 <div
-                  key={`${slot.period}-${slot.subjectCode}`}
+                  key={slot.occurrenceId || `${slot.period}-${slot.subjectCode}`}
                   className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${
                     status === "PRESENT"
                       ? "bg-emerald-50/20"
@@ -321,7 +328,7 @@ export default function MarkAttendancePage() {
                   <div className="flex items-start gap-4">
                     <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-center shrink-0">
                       <span className="text-[10px] font-bold text-zinc-500 uppercase">Period</span>
-                      <span className="text-lg font-black text-zinc-900 dark:text-white">
+                      <span className="text-lg font-black text-zinc-900 dark:white">
                         {slot.period}
                       </span>
                     </div>
@@ -331,6 +338,11 @@ export default function MarkAttendancePage() {
                         <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">
                           {slot.subjectCode}
                         </span>
+                        {slot.isOneTime && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                            Extra Class
+                          </span>
+                        )}
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             slot.category === "Lab"

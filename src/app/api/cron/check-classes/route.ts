@@ -3,6 +3,7 @@ import { getAllActiveSubscriptions, removeSubscription } from "@/lib/subscriptio
 import { sendWebPush } from "@/lib/webpush";
 import { UNIVERSITY_DATABASE, findTimetableForStudent } from "@/data/extractedTimetables";
 import { generateActionToken, getISTDateTime, validateCronAuthorization } from "@/lib/actionSecurity";
+import { serverGetDateOverrides } from "@/lib/serverTimetableOverrides";
 
 // Official MMMUT Period Timing Map (IST)
 const PERIOD_START_TIMES: Record<number, { hour: number; minute: number; name: string }> = {
@@ -130,23 +131,62 @@ async function handleCheckClasses(req: NextRequest) {
       }
     }
 
+    const todayOverrides = await serverGetDateOverrides({ date: dateStr });
+
     for (const sub of subscriptions) {
       const studentMeta = studentProfileMap.get(sub.studentId);
+      const studentBranch = studentMeta?.branchCode || "IT";
+      const studentSection = studentMeta?.section || "SEC-B";
+      const studentBatch = studentMeta?.batch || "ALL";
+
       const timetable = findTimetableForStudent({
-        branchCode: studentMeta?.branchCode || "IT",
-        section: studentMeta?.section || "SEC-B",
+        branchCode: studentBranch,
+        section: studentSection,
       });
       if (!timetable) continue;
 
-      const studentBatch = studentMeta?.batch || "ALL";
-
       // Filter slots for today and the matched period matching the student's practical batch
-      const matchingSlots = timetable.slots.filter(
+      let matchingSlots = timetable.slots.filter(
         (s) =>
           s.day === dayOfWeek &&
           s.period === targetPeriod &&
           (s.batch === "ALL" || studentBatch === "ALL" || s.batch === studentBatch)
       );
+
+      // Check date cancellations (Remove this occurrence only)
+      const cancellations = todayOverrides.filter(
+        (o) =>
+          o.type === "CANCEL_OCCURRENCE" &&
+          o.originalPeriod === targetPeriod &&
+          (o.scope === "CLASS"
+            ? (o.branchCode === studentBranch && o.section === studentSection)
+            : o.studentId === sub.studentId) &&
+          (o.batch === "ALL" || studentBatch === "ALL" || o.batch === studentBatch)
+      );
+
+      if (cancellations.length > 0) {
+        matchingSlots = matchingSlots.filter(
+          (s) => !cancellations.some((c) => !c.originalSubjectCode || c.originalSubjectCode === s.subjectCode)
+        );
+      }
+
+      // Check one-time extra classes scheduled for today
+      const extras = todayOverrides.filter(
+        (o) =>
+          o.type === "EXTRA_CLASS" &&
+          o.slot &&
+          o.slot.period === targetPeriod &&
+          (o.scope === "CLASS"
+            ? (o.branchCode === studentBranch && o.section === studentSection)
+            : o.studentId === sub.studentId) &&
+          (o.batch === "ALL" || studentBatch === "ALL" || o.batch === studentBatch)
+      );
+
+      for (const extra of extras) {
+        if (extra.slot) {
+          matchingSlots.push(extra.slot);
+        }
+      }
 
       for (const slot of matchingSlots) {
         // Duplicate notification prevention

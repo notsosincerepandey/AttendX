@@ -21,6 +21,7 @@ import {
   clearAttendanceData,
 } from "@/lib/storage";
 import { computeDashboardStats } from "@/lib/attendanceCalculator";
+import { getEffectiveSlotsForDate } from "@/lib/timetableOverrides";
 import {
   GraduationCap,
   Calendar,
@@ -104,11 +105,8 @@ export default function Dashboard() {
   const todayDate = new Date(todayStr || getTodayDateStr());
   const todayDayName = todayDate.toLocaleDateString("en-US", { weekday: "long" });
 
-  const todaySlots = timetable.slots
-    .filter(
-      (s) => s.day === todayDayName && (s.batch === "ALL" || s.batch === profile.batch)
-    )
-    .sort((a, b) => a.period - b.period);
+  // Resolve effective slots for today (including one-time extra classes, excluding date cancellations)
+  const todaySlots = getEffectiveSlotsForDate(profile, todayStr, { timetable });
 
   const todayRecords = records.filter((r) => r.date === todayStr);
 
@@ -116,16 +114,20 @@ export default function Dashboard() {
     slot: TimetableSlot,
     newStatus: "PRESENT" | "ABSENT" | "CANCELLED"
   ) => {
-    const existing = records.find(
-      (r) => r.date === todayStr && r.period === slot.period && r.subjectCode === slot.subjectCode
-    );
+    const existing = records.find((r) => {
+      if (r.date !== todayStr) return false;
+      if (slot.occurrenceId && r.occurrenceId) {
+        return r.occurrenceId === slot.occurrenceId;
+      }
+      return r.period === slot.period && r.subjectCode === slot.subjectCode;
+    });
 
     let updated: AttendanceRecord[];
     if (existing) {
       updated = updatePeriodAttendance(existing.id, newStatus);
     } else {
       const newRecord: AttendanceRecord = {
-        id: `att-${todayStr}-p${slot.period}-${slot.subjectCode}`,
+        id: `att-${todayStr}-p${slot.period}-${slot.subjectCode}${slot.occurrenceId ? `-${slot.occurrenceId}` : ""}`,
         studentId: profile.id,
         date: todayStr,
         period: slot.period,
@@ -138,6 +140,9 @@ export default function Dashboard() {
         status: newStatus,
         markedAt: new Date().toISOString(),
         markedBy: "STUDENT",
+        isExtraClass: slot.isOneTime,
+        occurrenceId: slot.occurrenceId,
+        slotId: slot.id,
       };
       updated = [...records, newRecord];
       saveStoredAttendance(updated, profile.id);
@@ -454,14 +459,17 @@ export default function Dashboard() {
                 </div>
               ) : (
                 todaySlots.map((slot) => {
-                  const record = todayRecords.find(
-                    (r) => r.period === slot.period && r.subjectCode === slot.subjectCode
-                  );
+                  const record = todayRecords.find((r) => {
+                    if (slot.occurrenceId && r.occurrenceId) {
+                      return r.occurrenceId === slot.occurrenceId;
+                    }
+                    return r.period === slot.period && r.subjectCode === slot.subjectCode;
+                  });
                   const status = record?.status || "PENDING";
 
                   return (
                     <div
-                      key={`${slot.period}-${slot.subjectCode}`}
+                      key={slot.occurrenceId || `${slot.period}-${slot.subjectCode}`}
                       className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
                         status === "PRESENT"
                           ? "bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40"
@@ -482,6 +490,11 @@ export default function Dashboard() {
                             <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">
                               {slot.subjectCode}
                             </span>
+                            {slot.isOneTime && (
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                                Extra
+                              </span>
+                            )}
                             <span
                               className={`text-[10px] font-semibold px-2 py-0.2 rounded-full ${
                                 slot.category === "Lab"

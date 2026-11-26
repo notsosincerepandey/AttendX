@@ -330,18 +330,22 @@ export function markAllPeriodsForDate(
   const timetable = getActiveTimetable(profile);
   const records = getStoredAttendance(profile);
   if (!timetable) return records;
-  const dateObj = new Date(dateStr);
-  const dayName = dateObj.toLocaleDateString("en-US", { weekday: "long" });
 
-  const scheduledSlots = timetable.slots.filter(
-    (s) => s.day === dayName && (s.batch === "ALL" || s.batch === profile.batch)
-  );
+  // Resolve effective slots for this exact date (handles one-time extra classes and cancellations)
+  // Dynamic import or local helper to avoid circular dependency
+  const { getEffectiveSlotsForDate } = require("./timetableOverrides");
+  const scheduledSlots: TimetableSlot[] = getEffectiveSlotsForDate(profile, dateStr, { timetable });
 
   const updated = [...records];
   for (const slot of scheduledSlots) {
-    const existingIdx = updated.findIndex(
-      (r) => r.date === dateStr && r.period === slot.period && r.subjectCode === slot.subjectCode
-    );
+    const existingIdx = updated.findIndex((r) => {
+      if (r.date !== dateStr) return false;
+      if (slot.occurrenceId && r.occurrenceId) {
+        return r.occurrenceId === slot.occurrenceId;
+      }
+      return r.period === slot.period && r.subjectCode === slot.subjectCode;
+    });
+
     if (existingIdx !== -1) {
       updated[existingIdx] = {
         ...updated[existingIdx],
@@ -351,7 +355,7 @@ export function markAllPeriodsForDate(
       };
     } else {
       updated.push({
-        id: `att-${dateStr}-p${slot.period}-${slot.subjectCode}`,
+        id: `att-${dateStr}-p${slot.period}-${slot.subjectCode}${slot.occurrenceId ? `-${slot.occurrenceId}` : ""}`,
         studentId: profile.id,
         date: dateStr,
         period: slot.period,
@@ -364,6 +368,9 @@ export function markAllPeriodsForDate(
         status: newStatus,
         markedAt: new Date().toISOString(),
         markedBy: "STUDENT",
+        isExtraClass: slot.isOneTime,
+        occurrenceId: slot.occurrenceId,
+        slotId: slot.id,
       });
     }
   }
@@ -371,8 +378,6 @@ export function markAllPeriodsForDate(
   saveStoredAttendance(updated, profile.id);
   return updated;
 }
-
-
 
 // Quick action: Mark entire multi-period lab
 export function markLabSession(
@@ -385,22 +390,24 @@ export function markLabSession(
   const timetable = getActiveTimetable(profile);
   const records = getStoredAttendance(profile);
   if (!timetable) return records;
-  const dateObj = new Date(dateStr);
-  const dayName = dateObj.toLocaleDateString("en-US", { weekday: "long" });
 
-  const labSlots = timetable.slots.filter(
-    (s) =>
-      s.day === dayName &&
-      s.subjectCode === subjectCode &&
-      s.category === "Lab" &&
-      (s.batch === "ALL" || s.batch === profile.batch)
+  const { getEffectiveSlotsForDate } = require("./timetableOverrides");
+  const scheduledSlots: TimetableSlot[] = getEffectiveSlotsForDate(profile, dateStr, { timetable });
+
+  const labSlots = scheduledSlots.filter(
+    (s) => s.subjectCode === subjectCode && s.category === "Lab"
   );
 
   const updated = [...records];
   for (const slot of labSlots) {
-    const existingIdx = updated.findIndex(
-      (r) => r.date === dateStr && r.period === slot.period && r.subjectCode === slot.subjectCode
-    );
+    const existingIdx = updated.findIndex((r) => {
+      if (r.date !== dateStr) return false;
+      if (slot.occurrenceId && r.occurrenceId) {
+        return r.occurrenceId === slot.occurrenceId;
+      }
+      return r.period === slot.period && r.subjectCode === slot.subjectCode;
+    });
+
     if (existingIdx !== -1) {
       updated[existingIdx] = {
         ...updated[existingIdx],
@@ -410,7 +417,7 @@ export function markLabSession(
       };
     } else {
       updated.push({
-        id: `att-${dateStr}-p${slot.period}-${slot.subjectCode}`,
+        id: `att-${dateStr}-p${slot.period}-${slot.subjectCode}${slot.occurrenceId ? `-${slot.occurrenceId}` : ""}`,
         studentId: profile.id,
         date: dateStr,
         period: slot.period,
@@ -423,6 +430,9 @@ export function markLabSession(
         status: newStatus,
         markedAt: new Date().toISOString(),
         markedBy: "STUDENT",
+        isExtraClass: slot.isOneTime,
+        occurrenceId: slot.occurrenceId,
+        slotId: slot.id,
       });
     }
   }

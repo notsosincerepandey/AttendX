@@ -7,6 +7,7 @@ import {
   UniversityTimetable,
   TimetableSlot,
   AttendanceCategory,
+  DateSpecificOverride,
 } from "@/types";
 import {
   getStoredProfile,
@@ -14,7 +15,16 @@ import {
   saveCustomTimetable,
   saveOfficialClassTimetable,
   resetCustomTimetable,
+  getTodayDateStr,
 } from "@/lib/storage";
+import {
+  getAllOverridesForStudent,
+  getEffectiveSlotsForDate,
+  savePersonalOverride,
+  saveClassOverride,
+  deletePersonalOverride,
+  deleteClassOverride,
+} from "@/lib/timetableOverrides";
 import { UNIVERSITY_DATABASE } from "@/data/extractedTimetables";
 import {
   Calendar,
@@ -33,6 +43,11 @@ import {
   GripVertical,
   Move,
   Info,
+  ChevronLeft,
+  ChevronRight,
+  Layers,
+  CalendarDays,
+  XCircle,
 } from "lucide-react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -52,20 +67,24 @@ export default function TimetableManagementPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [timetable, setTimetable] = useState<UniversityTimetable | null>(null);
+  const [overrides, setOverrides] = useState<DateSpecificOverride[]>([]);
   const [selectedBatchFilter, setSelectedBatchFilter] = useState<string>("MY_BATCH");
-  const [effectiveDate, setEffectiveDate] = useState<string>("2026-11-07");
-  const [versionLabel, setVersionLabel] = useState<string>("V1.1 (Personalized)");
+  const [viewMode, setViewMode] = useState<"WEEKLY" | "DATE">("WEEKLY");
+  const [selectedDate, setSelectedDate] = useState<string>("2026-11-27");
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [classPublishSuccess, setClassPublishSuccess] = useState<boolean>(false);
+  const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
   // Drag and drop state
   const [draggedSlot, setDraggedSlot] = useState<TimetableSlot | null>(null);
   const [dragOverCell, setDragOverCell] = useState<{ day: string; period: number } | null>(null);
-  const [moveToast, setMoveToast] = useState<string | null>(null);
 
   // Edit / Add Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
+  const [editingSlot, setEditingSlot] = useState<TimetableSlot | null>(null);
+  const [slotFrequency, setSlotFrequency] = useState<"THIS_DAY_ONLY" | "EVERY_WEEK">("THIS_DAY_ONLY");
+  const [slotDate, setSlotDate] = useState<string>("2026-11-27");
   const [slotDay, setSlotDay] = useState<string>("Monday");
   const [slotPeriod, setSlotPeriod] = useState<number>(1);
   const [slotSubjectCode, setSlotSubjectCode] = useState<string>("");
@@ -74,9 +93,20 @@ export default function TimetableManagementPage() {
   const [slotBatch, setSlotBatch] = useState<string>("ALL");
   const [slotRoom, setSlotRoom] = useState<string>("");
   const [slotFaculty, setSlotFaculty] = useState<string>("");
+  const [slotScope, setSlotScope] = useState<"PERSONAL" | "CLASS">("PERSONAL");
+
+  // Removal scope modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteTargetSlot, setDeleteTargetSlot] = useState<TimetableSlot | null>(null);
+  const [deleteTargetIndex, setDeleteTargetIndex] = useState<number | null>(null);
+  const [deleteOccurrenceDate, setDeleteOccurrenceDate] = useState<string>("2026-11-27");
 
   useEffect(() => {
     const prof = getStoredProfile();
+    const today = getTodayDateStr();
+    setSelectedDate(today);
+    setSlotDate(today);
+    setDeleteOccurrenceDate(today);
     if (!prof) {
       setProfile(null);
       return;
@@ -87,20 +117,40 @@ export default function TimetableManagementPage() {
       return;
     }
     const tt = getActiveTimetable(prof);
+    const ovrs = getAllOverridesForStudent(prof);
     setProfile(prof);
-    setTimetable(tt ? JSON.parse(JSON.stringify(tt)) : null); // clone for local edits
+    setTimetable(tt ? JSON.parse(JSON.stringify(tt)) : null);
+    setOverrides(ovrs);
+
+    // Default scope for CR
+    if (prof.role === "class_admin") {
+      setSlotScope("CLASS");
+    }
   }, [router]);
+
+  // Sync day name whenever slotDate changes
+  useEffect(() => {
+    if (slotDate) {
+      const [y, m, d] = slotDate.split("-").map(Number);
+      const dateObj = new Date(y, m - 1, d);
+      const dayName = dateObj.toLocaleDateString("en-US", { weekday: "long" });
+      setSlotDay(dayName);
+    }
+  }, [slotDate]);
 
   // Auto-dismiss modal on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsModalOpen(false);
+      if (e.key === "Escape") {
+        setIsModalOpen(false);
+        setIsDeleteModalOpen(false);
+      }
     };
-    if (isModalOpen) {
+    if (isModalOpen || isDeleteModalOpen) {
       document.addEventListener("keydown", handleKeyDown);
     }
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isModalOpen]);
+  }, [isModalOpen, isDeleteModalOpen]);
 
   if (!profile) {
     return (
@@ -120,7 +170,15 @@ export default function TimetableManagementPage() {
           Timetable Mapping Not Found
         </h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-          No official timetable is currently mapped for branch <span className="font-semibold text-zinc-900 dark:text-zinc-200">{profile.branch} ({profile.branchCode})</span>, section <span className="font-semibold text-zinc-900 dark:text-zinc-200">{profile.section}</span>.
+          No official timetable is currently mapped for branch{" "}
+          <span className="font-semibold text-zinc-900 dark:text-zinc-200">
+            {profile.branch} ({profile.branchCode})
+          </span>
+          , section{" "}
+          <span className="font-semibold text-zinc-900 dark:text-zinc-200">
+            {profile.section}
+          </span>
+          .
         </p>
         <p className="text-xs text-zinc-500 dark:text-zinc-500">
           Please contact your Department Administrator or Class Representative to publish your section&apos;s schedule.
@@ -129,7 +187,7 @@ export default function TimetableManagementPage() {
     );
   }
 
-  // Filter slots by batch selection
+  // Filter slots for Weekly View
   const filteredSlots = timetable.slots.filter((s) => {
     if (selectedBatchFilter === "ALL") return true;
     if (selectedBatchFilter === "MY_BATCH") {
@@ -138,22 +196,37 @@ export default function TimetableManagementPage() {
     return s.batch === selectedBatchFilter || s.batch === "ALL";
   });
 
-  const openAddSlot = (day: string, period: number) => {
+  // Filter slots for Date View (combines recurring + extra classes - cancelled occurrences)
+  const effectiveDateSlots = getEffectiveSlotsForDate(profile, selectedDate, {
+    timetable,
+    overrides,
+    batch: selectedBatchFilter === "MY_BATCH" ? profile.batch : selectedBatchFilter,
+    includeCancelled: true,
+  });
+
+  const openAddSlot = (day: string, period: number, dateOverride?: string) => {
     setEditingSlotIndex(null);
+    setEditingSlot(null);
     setSlotDay(day);
     setSlotPeriod(period);
+    // When adding an extra class, default to This Day Only as required
+    setSlotFrequency("THIS_DAY_ONLY");
+    setSlotDate(dateOverride || selectedDate || getTodayDateStr());
+
     const defaultSub = timetable.subjects[0];
     setSlotSubjectCode(defaultSub ? defaultSub.code : "BIT-103");
     setSlotSubjectName(defaultSub ? defaultSub.name : "Programming in C");
     setSlotCategory("Theory");
-    setSlotBatch("ALL");
+    setSlotBatch(profile.batch || "ALL");
     setSlotRoom(timetable.room);
     setSlotFaculty("");
+    setSlotScope(profile.role === "class_admin" ? "CLASS" : "PERSONAL");
     setIsModalOpen(true);
   };
 
   const openEditSlot = (slot: TimetableSlot, index: number) => {
     setEditingSlotIndex(index);
+    setEditingSlot(slot);
     setSlotDay(slot.day);
     setSlotPeriod(slot.period);
     setSlotSubjectCode(slot.subjectCode);
@@ -162,27 +235,127 @@ export default function TimetableManagementPage() {
     setSlotBatch(slot.batch);
     setSlotRoom(slot.room);
     setSlotFaculty(slot.faculty || "");
+    setSlotFrequency(slot.isOneTime ? "THIS_DAY_ONLY" : "EVERY_WEEK");
+    setSlotDate(slot.specificDate || selectedDate || getTodayDateStr());
+    setSlotScope(profile.role === "class_admin" ? "CLASS" : "PERSONAL");
     setIsModalOpen(true);
   };
 
-  const handleDeleteSlot = (index: number) => {
-    const updated = [...timetable.slots];
-    updated.splice(index, 1);
-    const newTimetable = { ...timetable, slots: updated };
-    setTimetable(newTimetable);
-    saveCustomTimetable(newTimetable.id, newTimetable);
+  const promptDeleteSlot = (slot: TimetableSlot, index: number | null) => {
+    setDeleteTargetSlot(slot);
+    setDeleteTargetIndex(index);
+    setDeleteOccurrenceDate(slot.specificDate || selectedDate || getTodayDateStr());
+    setIsModalOpen(false);
+    setIsDeleteModalOpen(true);
   };
 
-  const handleSaveSlotModal = () => {
+  // Option 1: Remove this occurrence only (preserves future & past recurring classes)
+  const handleRemoveOccurrenceOnly = async () => {
+    if (!deleteTargetSlot) return;
+
+    const override: DateSpecificOverride = {
+      id: `ovr-canc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      scope: slotScope,
+      studentId: profile.id,
+      branchCode: profile.branchCode,
+      section: profile.section,
+      academicYear: profile.academicYear || "1st Year",
+      batch: deleteTargetSlot.batch || "ALL",
+      date: deleteOccurrenceDate,
+      type: "CANCEL_OCCURRENCE",
+      originalPeriod: deleteTargetSlot.period,
+      originalSubjectCode: deleteTargetSlot.subjectCode,
+      originalSlotId: deleteTargetSlot.id,
+      reason: `Cancelled for ${deleteOccurrenceDate}`,
+      createdBy: profile.id,
+      createdByName: profile.fullName,
+      createdByRole: profile.role,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (slotScope === "CLASS" && (profile.role === "class_admin" || profile.role === "admin")) {
+      saveClassOverride(profile.branchCode, profile.section, override);
+    } else {
+      savePersonalOverride(profile.id, override);
+    }
+
+    // Server-side sync
+    try {
+      await fetch("/api/timetable/overrides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(override),
+      });
+    } catch (err) {
+      console.warn("Server sync error for cancellation override", err);
+    }
+
+    const updatedOverrides = getAllOverridesForStudent(profile);
+    setOverrides(updatedOverrides);
+    setIsDeleteModalOpen(false);
+    setDeleteTargetSlot(null);
+
+    setFeedbackToast(
+      `Class occurrence for ${deleteTargetSlot.subjectCode} cancelled on ${deleteOccurrenceDate} only. Recurring weekly schedule remains intact!`
+    );
+    setTimeout(() => setFeedbackToast(null), 4000);
+  };
+
+  // Option 2: Remove every week (removes recurring slot permanently)
+  const handleRemoveEveryWeek = () => {
+    if (!deleteTargetSlot) return;
+
+    if (deleteTargetIndex !== null && deleteTargetIndex >= 0) {
+      const updated = [...timetable.slots];
+      updated.splice(deleteTargetIndex, 1);
+      const newTimetable = { ...timetable, slots: updated };
+      setTimetable(newTimetable);
+      saveCustomTimetable(newTimetable.id, newTimetable);
+
+      if (slotScope === "CLASS" && (profile.role === "class_admin" || profile.role === "admin")) {
+        saveOfficialClassTimetable(newTimetable, profile.fullName, profile);
+      }
+    }
+
+    setIsDeleteModalOpen(false);
+    setDeleteTargetSlot(null);
+
+    setFeedbackToast(
+      `Recurring weekly class ${deleteTargetSlot.subjectCode} removed from timetable. Historical attendance data remains intact!`
+    );
+    setTimeout(() => setFeedbackToast(null), 4000);
+  };
+
+  // Delete an extra class occurrence directly
+  const handleDeleteExtraClass = async () => {
+    if (!deleteTargetSlot) return;
+
+    if (deleteTargetSlot.overrideId) {
+      deletePersonalOverride(profile.id, deleteTargetSlot.overrideId);
+      deleteClassOverride(profile.branchCode, profile.section, deleteTargetSlot.overrideId);
+
+      try {
+        await fetch(`/api/timetable/overrides?id=${deleteTargetSlot.overrideId}`, {
+          method: "DELETE",
+        });
+      } catch (err) {
+        console.warn("Server sync error for extra class removal", err);
+      }
+    }
+
+    const updatedOverrides = getAllOverridesForStudent(profile);
+    setOverrides(updatedOverrides);
+    setIsDeleteModalOpen(false);
+    setDeleteTargetSlot(null);
+
+    setFeedbackToast(`Extra class ${deleteTargetSlot.subjectCode} removed successfully.`);
+    setTimeout(() => setFeedbackToast(null), 3000);
+  };
+
+  const handleSaveSlotModal = async () => {
     const periodNum = Number(slotPeriod);
     if (!periodNum || periodNum < 1 || periodNum > 12) {
       alert("Period number must be between 1 and 12.");
-      return;
-    }
-
-    const validDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    if (!validDays.includes(slotDay)) {
-      alert("Please select a valid weekday.");
       return;
     }
 
@@ -191,7 +364,87 @@ export default function TimetableManagementPage() {
       return;
     }
 
+    // Branch 1: THIS DAY ONLY (One-time extra class)
+    if (slotFrequency === "THIS_DAY_ONLY") {
+      if (!slotDate) {
+        alert("Please select an exact date for the one-time class.");
+        return;
+      }
+
+      const occurrenceId = `extra-${slotDate}-p${periodNum}-${slotSubjectCode.trim()}-${Math.random().toString(36).substring(2, 6)}`;
+      const overrideId = `ovr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+
+      const newOneTimeSlot: TimetableSlot = {
+        id: `slot-${occurrenceId}`,
+        day: slotDay,
+        period: periodNum,
+        subjectCode: slotSubjectCode.trim(),
+        subjectName: slotSubjectName.trim(),
+        category: slotCategory,
+        batch: slotBatch,
+        room: slotRoom.trim() || timetable.room,
+        faculty: slotFaculty.trim(),
+        isOneTime: true,
+        specificDate: slotDate,
+        occurrenceId,
+        overrideId,
+        status: "SCHEDULED",
+      };
+
+      const override: DateSpecificOverride = {
+        id: overrideId,
+        scope: slotScope,
+        studentId: profile.id,
+        branchCode: profile.branchCode,
+        section: profile.section,
+        academicYear: profile.academicYear || "1st Year",
+        batch: slotBatch,
+        date: slotDate,
+        type: "EXTRA_CLASS",
+        slot: newOneTimeSlot,
+        createdBy: profile.id,
+        createdByName: profile.fullName,
+        createdByRole: profile.role,
+        createdAt: new Date().toISOString(),
+      };
+
+      if (slotScope === "CLASS" && (profile.role === "class_admin" || profile.role === "admin")) {
+        saveClassOverride(profile.branchCode, profile.section, override);
+      } else {
+        savePersonalOverride(profile.id, override);
+      }
+
+      // Persist to server API
+      try {
+        await fetch("/api/timetable/overrides", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(override),
+        });
+      } catch (err) {
+        console.warn("Server sync error for extra class override", err);
+      }
+
+      const updatedOverrides = getAllOverridesForStudent(profile);
+      setOverrides(updatedOverrides);
+      setIsModalOpen(false);
+
+      setFeedbackToast(
+        `Extra class scheduled for ${slotDate} (${slotDay}) Period ${periodNum}! Only visible on this date.`
+      );
+      setTimeout(() => setFeedbackToast(null), 4000);
+      return;
+    }
+
+    // Branch 2: EVERY WEEK (Recurring timetable entry)
+    const validDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    if (!validDays.includes(slotDay)) {
+      alert("Please select a valid weekday.");
+      return;
+    }
+
     const newSlot: TimetableSlot = {
+      id: editingSlot?.id || `slot-rec-${Date.now()}`,
       day: slotDay,
       period: periodNum,
       subjectCode: slotSubjectCode.trim(),
@@ -212,7 +465,14 @@ export default function TimetableManagementPage() {
     const newTimetable = { ...timetable, slots: updated };
     setTimetable(newTimetable);
     saveCustomTimetable(newTimetable.id, newTimetable);
+
+    if (slotScope === "CLASS" && (profile.role === "class_admin" || profile.role === "admin")) {
+      saveOfficialClassTimetable(newTimetable, profile.fullName, profile);
+    }
+
     setIsModalOpen(false);
+    setFeedbackToast(`Recurring class saved to weekly schedule!`);
+    setTimeout(() => setFeedbackToast(null), 3000);
   };
 
   const handleSaveAndActivate = () => {
@@ -240,7 +500,7 @@ export default function TimetableManagementPage() {
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
-  // Drag & Drop Handlers
+  // Drag & Drop Handlers (Weekly Matrix only)
   const handleDragStart = (e: React.DragEvent, slot: TimetableSlot) => {
     setDraggedSlot(slot);
     e.dataTransfer.setData("text/plain", JSON.stringify(slot));
@@ -255,8 +515,7 @@ export default function TimetableManagementPage() {
     }
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    // Only reset if dragging out of cell container
+  const handleDragLeave = () => {
     setDragOverCell(null);
   };
 
@@ -284,7 +543,6 @@ export default function TimetableManagementPage() {
       return;
     }
 
-    // Check if target cell already has a slot with overlapping batch
     const targetIdx = updatedSlots.findIndex(
       (s) =>
         s.day === targetDay &&
@@ -293,39 +551,36 @@ export default function TimetableManagementPage() {
     );
 
     if (targetIdx !== -1) {
-      // Swap the two slots!
+      // Swap slots
       const targetSlot = updatedSlots[targetIdx];
-      updatedSlots[sourceIdx] = {
-        ...draggedSlot,
-        day: targetDay,
-        period: targetPeriod,
-      };
-      updatedSlots[targetIdx] = {
-        ...targetSlot,
-        day: draggedSlot.day,
-        period: draggedSlot.period,
-      };
-      setMoveToast(
-        `Swapped ${draggedSlot.subjectCode} (${draggedSlot.day} P${draggedSlot.period}) with ${targetSlot.subjectCode} (${targetDay} P${targetPeriod})`
-      );
+      updatedSlots[sourceIdx] = { ...draggedSlot, day: targetDay, period: targetPeriod };
+      updatedSlots[targetIdx] = { ...targetSlot, day: draggedSlot.day, period: draggedSlot.period };
     } else {
-      // Move slot directly into target empty period
-      updatedSlots[sourceIdx] = {
-        ...draggedSlot,
-        day: targetDay,
-        period: targetPeriod,
-      };
-      setMoveToast(
-        `Moved ${draggedSlot.subjectCode} from ${draggedSlot.day} P${draggedSlot.period} to ${targetDay} Period ${targetPeriod}`
-      );
+      updatedSlots[sourceIdx] = { ...draggedSlot, day: targetDay, period: targetPeriod };
     }
 
     const newTimetable = { ...timetable, slots: updatedSlots };
     setTimetable(newTimetable);
     saveCustomTimetable(newTimetable.id, newTimetable);
     setDraggedSlot(null);
-    setTimeout(() => setMoveToast(null), 4000);
+    setFeedbackToast(`Moved ${draggedSlot.subjectCode} to ${targetDay} Period ${targetPeriod}`);
+    setTimeout(() => setFeedbackToast(null), 3000);
   };
+
+  // Date navigation helpers
+  const changeDateByDays = (days: number) => {
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setDate(dateObj.getDate() + days);
+    const newY = dateObj.getFullYear();
+    const newM = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const newD = String(dateObj.getDate()).padStart(2, "0");
+    setSelectedDate(`${newY}-${newM}-${newD}`);
+  };
+
+  const [selY, selM, selD] = (selectedDate || "2026-11-27").split("-").map(Number);
+  const selectedDateObj = new Date(selY, (selM || 1) - 1, selD || 27);
+  const selectedDayName = selectedDateObj.toLocaleDateString("en-US", { weekday: "long" });
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -342,10 +597,10 @@ export default function TimetableManagementPage() {
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white flex items-center gap-2.5">
             <Calendar className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-            Timetable Verification & Personalization
+            Timetable Verification & Management
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            Drag & drop any class to another slot or day to rearrange. Click any class to edit theory/lab classification, faculty, or room.
+            Customize weekly recurring schedules or add date-specific one-time extra classes. All changes support full independent attendance marking.
           </p>
         </div>
 
@@ -382,20 +637,19 @@ export default function TimetableManagementPage() {
         <div className="p-3.5 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-bold text-purple-900 dark:text-purple-200 flex items-center gap-2 animate-in fade-in">
           <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
           <span>
-            Official Class Timetable Published! All students in {profile.branchCode} {profile.section} will now receive this schedule, and an announcement was dispatched to their notification feeds.
+            Official Class Timetable Published! All students in {profile.branchCode} {profile.section} will now receive this schedule.
           </span>
         </div>
       )}
 
-      {/* Drag & Drop Feedback Toast */}
-      {moveToast && (
+      {feedbackToast && (
         <div className="p-3.5 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2">
           <div className="flex items-center gap-2">
-            <Move className="w-4 h-4" />
-            <span>{moveToast}</span>
+            <CheckCircle className="w-4 h-4" />
+            <span>{feedbackToast}</span>
           </div>
           <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
-            Auto-Saved
+            Active
           </span>
         </div>
       )}
@@ -407,287 +661,439 @@ export default function TimetableManagementPage() {
         </div>
       )}
 
-      {/* Interactive Helper Banner */}
-      <div className="p-3.5 bg-gradient-to-r from-indigo-50 to-sky-50 dark:from-indigo-950/40 dark:to-sky-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between gap-3 text-xs text-indigo-950 dark:text-indigo-200">
-        <div className="flex items-center gap-2">
-          <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-          <span>
-            <b>Drag and drop:</b> Grab the handle icon <GripVertical className="w-3 h-3 inline text-zinc-500" /> on any class card to move it into any empty period or swap it with an existing lecture.
-          </span>
-        </div>
-        <span className="font-semibold text-indigo-700 dark:text-indigo-300 hidden sm:inline">
-          {filteredSlots.length} Classes Visible
-        </span>
-      </div>
-
-      {/* Control Strip: Batch Filter & Versioning */}
+      {/* Control Strip: View Mode, Date Picker, Batch Filter */}
       <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 flex flex-wrap items-center justify-between gap-4 text-xs">
+        {/* Left: View Mode Switcher */}
         <div className="flex items-center gap-3">
-          <span className="font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
-            <Filter className="w-3.5 h-3.5 text-indigo-500" /> View Filter:
-          </span>
+          <div className="flex items-center gap-1 bg-white dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
+            <button
+              onClick={() => setViewMode("WEEKLY")}
+              className={`px-3 py-1.5 rounded-md font-bold transition-colors flex items-center gap-1.5 ${
+                viewMode === "WEEKLY"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" /> Recurring Weekly
+            </button>
+            <button
+              onClick={() => setViewMode("DATE")}
+              className={`px-3 py-1.5 rounded-md font-bold transition-colors flex items-center gap-1.5 ${
+                viewMode === "DATE"
+                  ? "bg-indigo-600 text-white shadow-xs"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" /> Date Schedule (One-Time & Extras)
+            </button>
+          </div>
+
+          {/* Batch Selector */}
           <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
             <button
               onClick={() => setSelectedBatchFilter("MY_BATCH")}
-              className={`px-3 py-1 rounded-md font-bold transition-colors ${
+              className={`px-2.5 py-1 rounded-md font-bold transition-colors ${
                 selectedBatchFilter === "MY_BATCH"
-                  ? "bg-indigo-600 text-white shadow-xs"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900"
+                  ? "bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900"
+                  : "text-zinc-600 dark:text-zinc-400"
               }`}
             >
-              My Batch ({profile.batch})
+              Batch {profile.batch}
             </button>
             <button
               onClick={() => setSelectedBatchFilter("ALL")}
-              className={`px-3 py-1 rounded-md font-bold transition-colors ${
+              className={`px-2.5 py-1 rounded-md font-bold transition-colors ${
                 selectedBatchFilter === "ALL"
-                  ? "bg-indigo-600 text-white shadow-xs"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900"
+                  ? "bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900"
+                  : "text-zinc-600 dark:text-zinc-400"
               }`}
             >
-              Show All Batches (P1 + P2)
+              All Batches
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="text-zinc-500 font-medium">Effective Date:</span>
+        {/* Right: Date Navigator (Active in Date View) */}
+        {viewMode === "DATE" ? (
+          <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <button
+              onClick={() => changeDateByDays(-1)}
+              className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+              title="Previous Day"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
             <input
               type="date"
-              value={effectiveDate}
-              onChange={(e) => setEffectiveDate(e.target.value)}
-              className="bg-white dark:bg-zinc-900 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 font-mono text-zinc-800 dark:text-zinc-200"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent text-xs font-bold text-zinc-800 dark:text-zinc-200 focus:outline-none px-1"
             />
-          </div>
-        </div>
-      </div>
-
-      {/* Weekly Matrix Grid with Drag and Drop */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-x-auto">
-        <div className="min-w-[1000px]">
-          {/* Header Row: Periods */}
-          <div className="grid grid-cols-10 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/70 text-center text-xs font-bold text-zinc-700 dark:text-zinc-300">
-            <div className="p-3 border-r border-zinc-200 dark:border-zinc-800">
-              Day / Period
-            </div>
-            {PERIODS.slice(0, 4).map((p) => (
-              <div key={p.period} className="p-2 border-r border-zinc-200 dark:border-zinc-800">
-                <div className="text-[11px] font-black uppercase">Period {p.name}</div>
-                <div className="text-[10px] text-zinc-400 font-normal">{p.time}</div>
-              </div>
-            ))}
-            {/* Lunch Column */}
-            <div className="p-2 bg-amber-50/70 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 border-r border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-bold tracking-wider text-[11px]">
-              LUNCH BREAK (12:30-2:00)
-            </div>
-            {PERIODS.slice(4).map((p) => (
-              <div key={p.period} className="p-2 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0">
-                <div className="text-[11px] font-black uppercase">Period {p.name}</div>
-                <div className="text-[10px] text-zinc-400 font-normal">{p.time}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Days Rows */}
-          {DAYS.map((day) => (
-            <div
-              key={day}
-              className="grid grid-cols-10 border-b border-zinc-200 dark:border-zinc-800 last:border-b-0 min-h-[105px]"
+            <button
+              onClick={() => changeDateByDays(1)}
+              className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+              title="Next Day"
             >
-              {/* Day Name Column */}
-              <div className="p-3 bg-zinc-50/60 dark:bg-zinc-800/40 border-r border-zinc-200 dark:border-zinc-800 font-bold text-xs text-zinc-800 dark:text-zinc-200 flex items-center justify-center">
-                {day}
-              </div>
-
-              {/* Periods 1 - 4 */}
-              {[1, 2, 3, 4].map((periodNum) => {
-                const slotsForCell = filteredSlots.filter(
-                  (s) => s.day === day && s.period === periodNum
-                );
-                const isOver = dragOverCell?.day === day && dragOverCell?.period === periodNum;
-
-                return (
-                  <div
-                    key={periodNum}
-                    onDragOver={(e) => handleDragOver(e, day, periodNum)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, day, periodNum)}
-                    className={`p-1.5 border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between group relative transition-all duration-150 ${
-                      isOver
-                        ? "bg-indigo-100/70 dark:bg-indigo-950/70 border-2 border-dashed border-indigo-500 scale-[1.02] shadow-inner"
-                        : "hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40"
-                    }`}
-                  >
-                    {isOver && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-indigo-500/10 z-10 rounded">
-                        <span className="text-[10px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded shadow">
-                          Drop to Move
-                        </span>
-                      </div>
-                    )}
-
-                    {slotsForCell.length === 0 ? (
-                      <div className="h-full flex items-center justify-center">
-                        <button
-                          onClick={() => openAddSlot(day, periodNum)}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 hover:bg-indigo-100 text-[10px] font-bold transition-opacity flex items-center gap-1"
-                        >
-                          <Plus className="w-3 h-3" /> Add Class
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {slotsForCell.map((slot) => {
-                          const originalIndex = timetable.slots.indexOf(slot);
-                          const isBeingDragged =
-                            draggedSlot?.day === slot.day &&
-                            draggedSlot?.period === slot.period &&
-                            draggedSlot?.subjectCode === slot.subjectCode &&
-                            draggedSlot?.batch === slot.batch;
-
-                          return (
-                            <div
-                              key={`${slot.subjectCode}-${slot.batch}`}
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, slot)}
-                              onClick={() => openEditSlot(slot, originalIndex)}
-                              className={`p-2 rounded-lg border text-left cursor-grab active:cursor-grabbing transition-all hover:scale-[1.02] shadow-xs relative group/card ${
-                                isBeingDragged ? "opacity-40 scale-95 ring-2 ring-indigo-500" : ""
-                              } ${
-                                slot.category === "Lab"
-                                  ? "bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200"
-                                  : slot.category === "Tutorial"
-                                  ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200"
-                                  : "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between text-[10px] font-black">
-                                <span className="flex items-center gap-1">
-                                  <GripVertical className="w-3 h-3 text-zinc-400 group-hover/card:text-indigo-600" />
-                                  {slot.subjectCode}
-                                </span>
-                                <span className="opacity-80 font-mono text-[9px] bg-white/60 dark:bg-black/30 px-1 rounded">
-                                  {slot.batch}
-                                </span>
-                              </div>
-                              <div className="text-[11px] font-bold line-clamp-1 mt-0.5">
-                                {slot.subjectName}
-                              </div>
-                              <div className="text-[9px] text-zinc-500 font-mono mt-1 flex items-center justify-between">
-                                <span>{slot.room}</span>
-                                {slot.faculty && (
-                                  <span className="truncate max-w-[60px]">{slot.faculty}</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Lunch Cell */}
-              <div className="bg-amber-50/40 dark:bg-amber-950/10 border-r border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-[10px] text-amber-700/60 font-mono uppercase tracking-wider">
-                Recess
-              </div>
-
-              {/* Periods 5 - 8 */}
-              {[5, 6, 7, 8].map((periodNum) => {
-                const slotsForCell = filteredSlots.filter(
-                  (s) => s.day === day && s.period === periodNum
-                );
-                const isOver = dragOverCell?.day === day && dragOverCell?.period === periodNum;
-
-                return (
-                  <div
-                    key={periodNum}
-                    onDragOver={(e) => handleDragOver(e, day, periodNum)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, day, periodNum)}
-                    className={`p-1.5 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 flex flex-col justify-between group relative transition-all duration-150 ${
-                      isOver
-                        ? "bg-indigo-100/70 dark:bg-indigo-950/70 border-2 border-dashed border-indigo-500 scale-[1.02] shadow-inner"
-                        : "hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40"
-                    }`}
-                  >
-                    {isOver && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-indigo-500/10 z-10 rounded">
-                        <span className="text-[10px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded shadow">
-                          Drop to Move
-                        </span>
-                      </div>
-                    )}
-
-                    {slotsForCell.length === 0 ? (
-                      <div className="h-full flex items-center justify-center">
-                        <button
-                          onClick={() => openAddSlot(day, periodNum)}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 hover:bg-indigo-100 text-[10px] font-bold transition-opacity flex items-center gap-1"
-                        >
-                          <Plus className="w-3 h-3" /> Add Class
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {slotsForCell.map((slot) => {
-                          const originalIndex = timetable.slots.indexOf(slot);
-                          const isBeingDragged =
-                            draggedSlot?.day === slot.day &&
-                            draggedSlot?.period === slot.period &&
-                            draggedSlot?.subjectCode === slot.subjectCode &&
-                            draggedSlot?.batch === slot.batch;
-
-                          return (
-                            <div
-                              key={`${slot.subjectCode}-${slot.batch}`}
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, slot)}
-                              onClick={() => openEditSlot(slot, originalIndex)}
-                              className={`p-2 rounded-lg border text-left cursor-grab active:cursor-grabbing transition-all hover:scale-[1.02] shadow-xs relative group/card ${
-                                isBeingDragged ? "opacity-40 scale-95 ring-2 ring-indigo-500" : ""
-                              } ${
-                                slot.category === "Lab"
-                                  ? "bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200"
-                                  : slot.category === "Tutorial"
-                                  ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200"
-                                  : "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between text-[10px] font-black">
-                                <span className="flex items-center gap-1">
-                                  <GripVertical className="w-3 h-3 text-zinc-400 group-hover/card:text-indigo-600" />
-                                  {slot.subjectCode}
-                                </span>
-                                <span className="opacity-80 font-mono text-[9px] bg-white/60 dark:bg-black/30 px-1 rounded">
-                                  {slot.batch}
-                                </span>
-                              </div>
-                              <div className="text-[11px] font-bold line-clamp-1 mt-0.5">
-                                {slot.subjectName}
-                              </div>
-                              <div className="text-[9px] text-zinc-500 font-mono mt-1 flex items-center justify-between">
-                                <span>{slot.room}</span>
-                                {slot.faculty && (
-                                  <span className="truncate max-w-[60px]">{slot.faculty}</span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => openAddSlot(selectedDayName, 1, selectedDate)}
+              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg flex items-center gap-1 ml-1"
+            >
+              <Plus className="w-3.5 h-3.5" /> Extra Class
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openAddSlot("Monday", 1)}
+              className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 border border-indigo-200 dark:border-indigo-800 font-bold rounded-lg flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Class
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Edit / Add Slot Modal */}
+      {/* VIEW 1: WEEKLY MATRIX */}
+      {viewMode === "WEEKLY" && (
+        <div className="space-y-4">
+          <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-xl border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-between text-xs text-indigo-900 dark:text-indigo-200">
+            <span className="flex items-center gap-1.5">
+              <Info className="w-4 h-4 text-indigo-600" />
+              Showing the <b>Recurring Weekly Master Schedule</b>. Drag handle to reorder slots or click any card to edit.
+            </span>
+            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+              {filteredSlots.length} Weekly Classes
+            </span>
+          </div>
+
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-x-auto">
+            <div className="min-w-[1000px]">
+              {/* Header Row: Periods */}
+              <div className="grid grid-cols-10 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/70 text-center text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                <div className="p-3 border-r border-zinc-200 dark:border-zinc-800">
+                  Day / Period
+                </div>
+                {PERIODS.slice(0, 4).map((p) => (
+                  <div key={p.period} className="p-2 border-r border-zinc-200 dark:border-zinc-800">
+                    <div className="text-[11px] font-black uppercase">Period {p.name}</div>
+                    <div className="text-[10px] text-zinc-400 font-normal">{p.time}</div>
+                  </div>
+                ))}
+                {/* Lunch Column */}
+                <div className="p-2 bg-amber-50/70 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 border-r border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-bold tracking-wider text-[11px]">
+                  LUNCH BREAK (12:30-2:00)
+                </div>
+                {PERIODS.slice(4).map((p) => (
+                  <div key={p.period} className="p-2 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0">
+                    <div className="text-[11px] font-black uppercase">Period {p.name}</div>
+                    <div className="text-[10px] text-zinc-400 font-normal">{p.time}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Days Rows */}
+              {DAYS.map((day) => (
+                <div
+                  key={day}
+                  className="grid grid-cols-10 border-b border-zinc-200 dark:border-zinc-800 last:border-b-0 min-h-[105px]"
+                >
+                  {/* Day Name Column */}
+                  <div className="p-3 bg-zinc-50/60 dark:bg-zinc-800/40 border-r border-zinc-200 dark:border-zinc-800 font-bold text-xs text-zinc-800 dark:text-zinc-200 flex items-center justify-center">
+                    {day}
+                  </div>
+
+                  {/* Periods 1 - 4 */}
+                  {[1, 2, 3, 4].map((periodNum) => {
+                    const slotsForCell = filteredSlots.filter(
+                      (s) => s.day === day && s.period === periodNum
+                    );
+                    const isOver = dragOverCell?.day === day && dragOverCell?.period === periodNum;
+
+                    return (
+                      <div
+                        key={periodNum}
+                        onDragOver={(e) => handleDragOver(e, day, periodNum)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, day, periodNum)}
+                        className={`p-1.5 border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-between group relative transition-all duration-150 ${
+                          isOver
+                            ? "bg-indigo-100/70 dark:bg-indigo-950/70 border-2 border-dashed border-indigo-500 scale-[1.02] shadow-inner"
+                            : "hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40"
+                        }`}
+                      >
+                        {isOver && (
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-indigo-500/10 z-10 rounded">
+                            <span className="text-[10px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded shadow">
+                              Drop to Move
+                            </span>
+                          </div>
+                        )}
+
+                        {slotsForCell.length === 0 ? (
+                          <div className="h-full flex items-center justify-center">
+                            <button
+                              onClick={() => openAddSlot(day, periodNum)}
+                              className="opacity-0 group-hover:opacity-100 p-1 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 hover:bg-indigo-100 text-[10px] font-bold transition-opacity flex items-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" /> Add
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {slotsForCell.map((slot) => {
+                              const originalIndex = timetable.slots.indexOf(slot);
+                              const isBeingDragged =
+                                draggedSlot?.day === slot.day &&
+                                draggedSlot?.period === slot.period &&
+                                draggedSlot?.subjectCode === slot.subjectCode &&
+                                draggedSlot?.batch === slot.batch;
+
+                              return (
+                                <div
+                                  key={`${slot.subjectCode}-${slot.batch}-${slot.period}`}
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, slot)}
+                                  onClick={() => openEditSlot(slot, originalIndex)}
+                                  className={`p-2 rounded-lg border text-left cursor-grab active:cursor-grabbing transition-all hover:scale-[1.02] shadow-xs relative group/card ${
+                                    isBeingDragged ? "opacity-40 scale-95 ring-2 ring-indigo-500" : ""
+                                  } ${
+                                    slot.category === "Lab"
+                                      ? "bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200"
+                                      : slot.category === "Tutorial"
+                                      ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200"
+                                      : "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between text-[10px] font-black">
+                                    <span className="flex items-center gap-1">
+                                      <GripVertical className="w-3 h-3 text-zinc-400 group-hover/card:text-indigo-600" />
+                                      {slot.subjectCode}
+                                    </span>
+                                    <span className="opacity-80 font-mono text-[9px] bg-white/60 dark:bg-black/30 px-1 rounded">
+                                      {slot.batch}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] font-bold line-clamp-1 mt-0.5">
+                                    {slot.subjectName}
+                                  </div>
+                                  <div className="text-[9px] text-zinc-500 font-mono mt-1 flex items-center justify-between">
+                                    <span>{slot.room}</span>
+                                    {slot.faculty && (
+                                      <span className="truncate max-w-[60px]">{slot.faculty}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Lunch Cell */}
+                  <div className="bg-amber-50/40 dark:bg-amber-950/10 border-r border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-[10px] text-amber-700/60 font-mono uppercase tracking-wider">
+                    Recess
+                  </div>
+
+                  {/* Periods 5 - 8 */}
+                  {[5, 6, 7, 8].map((periodNum) => {
+                    const slotsForCell = filteredSlots.filter(
+                      (s) => s.day === day && s.period === periodNum
+                    );
+                    const isOver = dragOverCell?.day === day && dragOverCell?.period === periodNum;
+
+                    return (
+                      <div
+                        key={periodNum}
+                        onDragOver={(e) => handleDragOver(e, day, periodNum)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, day, periodNum)}
+                        className={`p-1.5 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 flex flex-col justify-between group relative transition-all duration-150 ${
+                          isOver
+                            ? "bg-indigo-100/70 dark:bg-indigo-950/70 border-2 border-dashed border-indigo-500 scale-[1.02] shadow-inner"
+                            : "hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40"
+                        }`}
+                      >
+                        {isOver && (
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-indigo-500/10 z-10 rounded">
+                            <span className="text-[10px] font-black bg-indigo-600 text-white px-2 py-0.5 rounded shadow">
+                              Drop to Move
+                            </span>
+                          </div>
+                        )}
+
+                        {slotsForCell.length === 0 ? (
+                          <div className="h-full flex items-center justify-center">
+                            <button
+                              onClick={() => openAddSlot(day, periodNum)}
+                              className="opacity-0 group-hover:opacity-100 p-1 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 hover:bg-indigo-100 text-[10px] font-bold transition-opacity flex items-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" /> Add
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {slotsForCell.map((slot) => {
+                              const originalIndex = timetable.slots.indexOf(slot);
+                              const isBeingDragged =
+                                draggedSlot?.day === slot.day &&
+                                draggedSlot?.period === slot.period &&
+                                draggedSlot?.subjectCode === slot.subjectCode &&
+                                draggedSlot?.batch === slot.batch;
+
+                              return (
+                                <div
+                                  key={`${slot.subjectCode}-${slot.batch}-${slot.period}`}
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, slot)}
+                                  onClick={() => openEditSlot(slot, originalIndex)}
+                                  className={`p-2 rounded-lg border text-left cursor-grab active:cursor-grabbing transition-all hover:scale-[1.02] shadow-xs relative group/card ${
+                                    isBeingDragged ? "opacity-40 scale-95 ring-2 ring-indigo-500" : ""
+                                  } ${
+                                    slot.category === "Lab"
+                                      ? "bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200"
+                                      : slot.category === "Tutorial"
+                                      ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200"
+                                      : "bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between text-[10px] font-black">
+                                    <span className="flex items-center gap-1">
+                                      <GripVertical className="w-3 h-3 text-zinc-400 group-hover/card:text-indigo-600" />
+                                      {slot.subjectCode}
+                                    </span>
+                                    <span className="opacity-80 font-mono text-[9px] bg-white/60 dark:bg-black/30 px-1 rounded">
+                                      {slot.batch}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] font-bold line-clamp-1 mt-0.5">
+                                    {slot.subjectName}
+                                  </div>
+                                  <div className="text-[9px] text-zinc-500 font-mono mt-1 flex items-center justify-between">
+                                    <span>{slot.room}</span>
+                                    {slot.faculty && (
+                                      <span className="truncate max-w-[60px]">{slot.faculty}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 2: DATE-SPECIFIC SCHEDULE (Shows One-Time Extra Classes & Overrides) */}
+      {viewMode === "DATE" && (
+        <div className="space-y-4">
+          <div className="p-3 bg-violet-50/70 dark:bg-violet-950/30 rounded-xl border border-violet-200 dark:border-violet-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-violet-950 dark:text-violet-200">
+            <span className="flex items-center gap-1.5 font-medium">
+              <CalendarDays className="w-4 h-4 text-violet-600 shrink-0" />
+              Viewing schedule for <b className="font-bold">{selectedDate} ({selectedDayName})</b>. This view synthesizes recurring classes, one-time extra classes, and date cancellations.
+            </span>
+            <span className="font-bold text-violet-700 dark:text-violet-400">
+              {effectiveDateSlots.length} Classes Scheduled
+            </span>
+          </div>
+
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden">
+            {effectiveDateSlots.length === 0 ? (
+              <div className="py-16 text-center text-zinc-500">
+                <Calendar className="w-10 h-10 mx-auto text-zinc-300 dark:text-zinc-700 mb-2" />
+                <h3 className="font-bold text-zinc-800 dark:text-zinc-200 text-sm">
+                  No classes scheduled for {selectedDate} ({selectedDayName})
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Click the &quot;Extra Class&quot; button above to schedule a one-time class on this date.
+                </p>
+              </div>
+            ) : (
+              effectiveDateSlots.map((slot) => {
+                const isCancelled = slot.status === "CANCELLED";
+
+                return (
+                  <div
+                    key={slot.occurrenceId || `${slot.period}-${slot.subjectCode}`}
+                    className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
+                      isCancelled
+                        ? "bg-rose-50/30 dark:bg-rose-950/20 opacity-60 line-through"
+                        : slot.isOneTime
+                        ? "bg-violet-50/30 dark:bg-violet-950/20"
+                        : "hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-bold text-sm flex items-center justify-center shrink-0">
+                        P{slot.period}
+                      </span>
+
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                            {slot.subjectCode}
+                          </span>
+
+                          {slot.isOneTime ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                              One-Time Extra Class
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                              Recurring Weekly
+                            </span>
+                          )}
+
+                          {isCancelled && (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-200">
+                              Cancelled for this date
+                            </span>
+                          )}
+
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                            {slot.category}
+                          </span>
+
+                          <span className="text-xs text-zinc-400 font-mono">
+                            {slot.room}
+                          </span>
+                          <span className="text-xs text-zinc-400 font-mono">
+                            Batch: {slot.batch}
+                          </span>
+                        </div>
+
+                        <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200 mt-1">
+                          {slot.subjectName}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      <button
+                        onClick={() => promptDeleteSlot(slot, null)}
+                        className="px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg flex items-center gap-1 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 1: ADD / EDIT CLASS WITH FREQUENCY SELECTION */}
       {isModalOpen && (
         <div
           onClick={(e) => {
@@ -695,47 +1101,157 @@ export default function TimetableManagementPage() {
           }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
         >
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 max-w-md w-full p-6 space-y-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2">
               <Calendar className="w-5 h-5 text-indigo-600" />
               {editingSlotIndex !== null ? "Edit Timetable Slot" : "Add Scheduled Class"}
             </h3>
 
-            <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-zinc-600 dark:text-zinc-400 block mb-1">
-                    Day
-                  </label>
-                  <select
-                    value={slotDay}
-                    onChange={(e) => setSlotDay(e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+            {/* Frequency Selection: THIS DAY ONLY vs EVERY WEEK */}
+            <div className="space-y-1.5">
+              <label className="font-semibold text-zinc-700 dark:text-zinc-300 block text-xs">
+                Schedule Frequency
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setSlotFrequency("THIS_DAY_ONLY")}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    slotFrequency === "THIS_DAY_ONLY"
+                      ? "bg-indigo-50 dark:bg-indigo-950/60 border-indigo-600 dark:border-indigo-500 text-indigo-900 dark:text-indigo-200 ring-2 ring-indigo-500/20"
+                      : "bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100"
+                  }`}
+                >
+                  <div className="font-bold flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                    This Day Only
+                  </div>
+                  <div className="text-[10px] text-zinc-500 mt-1 leading-snug">
+                    One-time extra class for a specific date. Will not modify recurring weekly schedule.
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSlotFrequency("EVERY_WEEK")}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    slotFrequency === "EVERY_WEEK"
+                      ? "bg-indigo-50 dark:bg-indigo-950/60 border-indigo-600 dark:border-indigo-500 text-indigo-900 dark:text-indigo-200 ring-2 ring-indigo-500/20"
+                      : "bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100"
+                  }`}
+                >
+                  <div className="font-bold flex items-center gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5 text-indigo-600" />
+                    Every Week
+                  </div>
+                  <div className="text-[10px] text-zinc-500 mt-1 leading-snug">
+                    Recurring class that repeats every week on the chosen weekday.
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Scope Selection (for CR or Admin) */}
+            {(profile.role === "class_admin" || profile.role === "admin") && (
+              <div className="space-y-1.5">
+                <label className="font-semibold text-zinc-700 dark:text-zinc-300 block text-xs">
+                  Modification Scope
+                </label>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setSlotScope("PERSONAL")}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      slotScope === "PERSONAL"
+                        ? "bg-indigo-50 border-indigo-600 text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-200 font-bold"
+                        : "bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400"
+                    }`}
                   >
-                    {DAYS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="font-semibold text-zinc-600 dark:text-zinc-400 block mb-1">
-                    Period
-                  </label>
-                  <select
-                    value={slotPeriod}
-                    onChange={(e) => setSlotPeriod(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+                    Personal Timetable Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSlotScope("CLASS")}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      slotScope === "CLASS"
+                        ? "bg-purple-50 border-purple-600 text-purple-900 dark:bg-purple-950/60 dark:text-purple-200 font-bold"
+                        : "bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400"
+                    }`}
                   >
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => (
-                      <option key={p} value={p}>
-                        Period {p}
-                      </option>
-                    ))}
-                  </select>
+                    Publish for Class ({profile.branchCode} {profile.section})
+                  </button>
                 </div>
               </div>
+            )}
+
+            <div className="space-y-3 text-xs">
+              {/* Conditional Date / Day Picker */}
+              {slotFrequency === "THIS_DAY_ONLY" ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-zinc-600 dark:text-zinc-400 block mb-1">
+                      Occurrence Date
+                    </label>
+                    <input
+                      type="date"
+                      value={slotDate}
+                      onChange={(e) => setSlotDate(e.target.value)}
+                      className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-zinc-600 dark:text-zinc-400 block mb-1">
+                      Period (Lecture Slot)
+                    </label>
+                    <select
+                      value={slotPeriod}
+                      onChange={(e) => setSlotPeriod(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg font-bold"
+                    >
+                      {PERIODS.map((p) => (
+                        <option key={p.period} value={p.period}>
+                          Period {p.period} ({p.time})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-zinc-600 dark:text-zinc-400 block mb-1">
+                      Day of Week
+                    </label>
+                    <select
+                      value={slotDay}
+                      onChange={(e) => setSlotDay(e.target.value)}
+                      className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg font-bold"
+                    >
+                      {DAYS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="font-semibold text-zinc-600 dark:text-zinc-400 block mb-1">
+                      Period
+                    </label>
+                    <select
+                      value={slotPeriod}
+                      onChange={(e) => setSlotPeriod(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg font-bold"
+                    >
+                      {PERIODS.map((p) => (
+                        <option key={p.period} value={p.period}>
+                          Period {p.period} ({p.time})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="font-semibold text-zinc-600 dark:text-zinc-400 block mb-1">
@@ -757,7 +1273,7 @@ export default function TimetableManagementPage() {
                   type="text"
                   value={slotSubjectName}
                   onChange={(e) => setSlotSubjectName(e.target.value)}
-                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg font-bold"
                 />
               </div>
 
@@ -778,18 +1294,18 @@ export default function TimetableManagementPage() {
                 </div>
                 <div>
                   <label className="font-semibold text-zinc-600 dark:text-zinc-400 block mb-1">
-                    Applicable Batch
+                    Target Batch
                   </label>
                   <select
                     value={slotBatch}
                     onChange={(e) => setSlotBatch(e.target.value)}
                     className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg font-bold"
                   >
-                    <option value="ALL">All Batches</option>
-                    <option value="P1">Batch P1</option>
-                    <option value="P2">Batch P2</option>
-                    <option value="P3">Batch P3</option>
-                    <option value="P4">Batch P4</option>
+                    <option value="ALL">All Batches (P1 + P2)</option>
+                    <option value="P1">Batch P1 Only</option>
+                    <option value="P2">Batch P2 Only</option>
+                    <option value="P3">Batch P3 Only</option>
+                    <option value="P4">Batch P4 Only</option>
                   </select>
                 </div>
               </div>
@@ -808,7 +1324,7 @@ export default function TimetableManagementPage() {
                 </div>
                 <div>
                   <label className="font-semibold text-zinc-600 dark:text-zinc-400 block mb-1">
-                    Faculty
+                    Faculty (Optional)
                   </label>
                   <input
                     type="text"
@@ -821,13 +1337,11 @@ export default function TimetableManagementPage() {
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800">
-              {editingSlotIndex !== null ? (
+              {editingSlotIndex !== null || editingSlot ? (
                 <button
-                  onClick={() => {
-                    handleDeleteSlot(editingSlotIndex);
-                    setIsModalOpen(false);
-                  }}
-                  className="px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1"
+                  type="button"
+                  onClick={() => promptDeleteSlot(editingSlot || timetable.slots[editingSlotIndex!], editingSlotIndex)}
+                  className="px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors flex items-center gap-1"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Remove Class
                 </button>
@@ -837,19 +1351,127 @@ export default function TimetableManagementPage() {
 
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg"
+                  className="px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleSaveSlotModal}
                   className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
                 >
-                  Save Slot
+                  Save Class
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: DELETE SCOPE SELECTION (Remove Occurrence Only vs Remove Every Week) */}
+      {isDeleteModalOpen && deleteTargetSlot && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsDeleteModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        >
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 max-w-md w-full p-6 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 mx-auto flex items-center justify-center">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-zinc-900 dark:text-white">
+                Remove Class: {deleteTargetSlot.subjectCode}
+              </h3>
+              <p className="text-xs text-zinc-500">
+                {deleteTargetSlot.subjectName} (Period {deleteTargetSlot.period}, Batch {deleteTargetSlot.batch})
+              </p>
+            </div>
+
+            {deleteTargetSlot.isOneTime ? (
+              // Case A: Target slot is an Extra Class occurrence
+              <div className="space-y-4 pt-2">
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 text-center">
+                  This is a one-time extra class scheduled for <b>{deleteTargetSlot.specificDate}</b>. Removing it will delete this occurrence only.
+                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => setIsDeleteModalOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteExtraClass}
+                    className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-sm"
+                  >
+                    Delete Extra Class
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Case B: Target slot is a Recurring Class
+              <div className="space-y-3 pt-2 text-xs">
+                <p className="text-zinc-600 dark:text-zinc-400">
+                  Select how you would like to remove this class:
+                </p>
+
+                {/* Option 1: Remove this occurrence only */}
+                <div className="p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-amber-600" />
+                      Remove This Occurrence Only
+                    </span>
+                    <input
+                      type="date"
+                      value={deleteOccurrenceDate}
+                      onChange={(e) => setDeleteOccurrenceDate(e.target.value)}
+                      className="px-2 py-0.5 bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700 rounded text-[11px] font-mono font-bold"
+                    />
+                  </div>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-400 leading-relaxed">
+                    Cancels this class for <b>{deleteOccurrenceDate}</b> only. Future and past weeks will continue showing this lecture as normal, and historical attendance is 100% preserved.
+                  </p>
+                  <button
+                    onClick={handleRemoveOccurrenceOnly}
+                    className="w-full py-2 font-bold text-amber-900 bg-amber-200/80 hover:bg-amber-300 dark:bg-amber-900 dark:text-amber-100 dark:hover:bg-amber-800 rounded-lg transition-colors"
+                  >
+                    Cancel for {deleteOccurrenceDate} Only
+                  </button>
+                </div>
+
+                {/* Option 2: Remove every week */}
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 rounded-xl space-y-2">
+                  <span className="font-bold text-rose-900 dark:text-rose-200 flex items-center gap-1.5">
+                    <RotateCcw className="w-4 h-4 text-rose-600" />
+                    Remove Every Week
+                  </span>
+                  <p className="text-[11px] text-rose-800 dark:text-rose-400 leading-relaxed">
+                    Permanently deletes this recurring lecture from your weekly timetable. Historical attendance logs are kept safe and will NOT be deleted.
+                  </p>
+                  <button
+                    onClick={handleRemoveEveryWeek}
+                    className="w-full py-2 font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-xs"
+                  >
+                    Delete From Weekly Timetable
+                  </button>
+                </div>
+
+                <div className="pt-2 text-center">
+                  <button
+                    onClick={() => setIsDeleteModalOpen(false)}
+                    className="text-xs text-zinc-500 hover:underline"
+                  >
+                    Keep Class (Cancel)
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

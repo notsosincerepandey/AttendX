@@ -17,6 +17,9 @@ export interface QuickMarkRequest {
   deadlineTime?: string;
   actionToken?: string;
   source?: string;
+  occurrenceId?: string;
+  isExtraClass?: boolean;
+  slotId?: string;
 }
 
 // In-memory server-side cache of attendance recorded via quick-mark
@@ -40,6 +43,9 @@ export async function POST(req: NextRequest) {
       deadlineTime,
       actionToken,
       source,
+      occurrenceId,
+      isExtraClass,
+      slotId,
     } = body;
 
     // 1. Parameter Validation
@@ -126,7 +132,9 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Duplicate Action Prevention & Finalized Decision Immutability
-    const recordKey = `${studentId}-${date}-p${period}-${subjectCode}`;
+    const recordKey = occurrenceId
+      ? `${studentId}-${date}-${occurrenceId}`
+      : `${studentId}-${date}-p${period}-${subjectCode}`;
     const existing = serverAttendanceStore.get(recordKey);
 
     if (existing) {
@@ -140,7 +148,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const recordId = `att-${date}-p${period}-${subjectCode}-${studentId.slice(0, 8)}`;
+    const recordId = occurrenceId
+      ? `att-${date}-${occurrenceId}-${studentId.slice(0, 8)}`
+      : `att-${date}-p${period}-${subjectCode}-${studentId.slice(0, 8)}`;
     const attendanceRecord = {
       id: recordId,
       student_id: studentId,
@@ -156,6 +166,9 @@ export async function POST(req: NextRequest) {
       marked_at: now.toISOString(),
       marked_by: "WEB_PUSH_ACTION",
       notes: `Quick-marked ${status} via Service Worker notification action (${source || "PUSH"})`,
+      is_extra_class: Boolean(isExtraClass),
+      occurrence_id: occurrenceId || null,
+      slot_id: slotId || null,
     };
 
     serverAttendanceStore.set(recordKey, attendanceRecord);
@@ -200,6 +213,9 @@ export async function POST(req: NextRequest) {
             status,
             marked_at: now.toISOString(),
             marked_by: "WEB_PUSH_ACTION",
+            is_extra_class: Boolean(isExtraClass),
+            occurrence_id: occurrenceId || null,
+            slot_id: slotId || null,
           },
           {
             onConflict: "student_id,session_date,period_number,subject_code",

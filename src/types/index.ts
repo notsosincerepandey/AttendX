@@ -102,6 +102,36 @@ export interface TimetableSlot {
   faculty?: string;
   startTime?: string;
   endTime?: string;
+  // Date-specific & One-time modifications
+  isOneTime?: boolean; // true if this is an extra/one-time class
+  specificDate?: string; // "YYYY-MM-DD" if this class is on a specific date
+  occurrenceId?: string; // unique occurrence identifier
+  overrideId?: string; // reference to DateSpecificOverride
+  originalSlotId?: string; // if rescheduled from a recurring slot
+  status?: "SCHEDULED" | "CANCELLED" | "RESCHEDULED";
+}
+
+export type DateOverrideType = "EXTRA_CLASS" | "CANCEL_OCCURRENCE" | "RESCHEDULE_OCCURRENCE";
+
+export interface DateSpecificOverride {
+  id: string; // Unique override ID (e.g. "ovr-extra-2026-11-28-...")
+  scope: "PERSONAL" | "CLASS"; // PERSONAL = student-only, CLASS = CR / Admin class-wide
+  studentId?: string; // Required for PERSONAL scope
+  branchCode?: string; // Required for CLASS scope
+  section?: string; // Required for CLASS scope
+  academicYear?: string; // e.g. "1st Year", "2nd Year"
+  batch: string; // "ALL" | "P1" | "P2" | "P3" | "P4"
+  date: string; // "YYYY-MM-DD"
+  type: DateOverrideType;
+  slot?: TimetableSlot;
+  originalSlotId?: string;
+  originalPeriod?: number;
+  originalSubjectCode?: string;
+  reason?: string;
+  createdBy: string;
+  createdByName?: string;
+  createdByRole?: "student" | "class_admin" | "admin";
+  createdAt: string;
 }
 
 export interface UniversityTimetable {
@@ -142,8 +172,12 @@ export interface AttendanceRecord {
   faculty?: string;
   status: AttendanceStatus;
   markedAt: string;
-  markedBy: "STUDENT" | "AUTO_ABSENCE" | "ADMIN_OVERRIDE";
+  markedBy: "STUDENT" | "AUTO_ABSENCE" | "ADMIN_OVERRIDE" | "WEB_PUSH_ACTION";
   notes?: string;
+  // One-time extra class & occurrence linkage
+  isExtraClass?: boolean;
+  occurrenceId?: string;
+  slotId?: string;
 }
 
 export interface AttendanceMetrics {

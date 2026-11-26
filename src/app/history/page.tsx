@@ -298,6 +298,11 @@ export default function AttendanceHistoryPage() {
                       <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
                         {r.subjectCode}
                       </span>
+                      {r.isExtraClass && (
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                          Extra Class
+                        </span>
+                      )}
                       <div className="text-[11px] text-zinc-500 line-clamp-1">
                         {r.subjectName}
                       </div>
