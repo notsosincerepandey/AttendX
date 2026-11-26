@@ -292,12 +292,12 @@ export default function ClassPollsPage() {
         {isClassAdminOrAdmin ? (
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 shadow-md shadow-purple-600/25 transition-all flex items-center gap-2 self-start md:self-auto"
+            className="glossy-btn glossy-btn-primary shine-sweep px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-md shadow-purple-600/25 flex items-center gap-2 self-start md:self-auto"
           >
             <Plus className="w-4 h-4" /> Create Class Poll
           </button>
         ) : (
-          <div className="text-xs text-zinc-400 bg-zinc-50 dark:bg-zinc-800/60 px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 flex items-center gap-1.5">
+          <div className="text-xs text-zinc-400 bg-zinc-800/60 px-3 py-2 rounded-xl border border-white/10 flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
             <span>Polls organized by your Class CR</span>
           </div>
@@ -339,10 +339,10 @@ export default function ClassPollsPage() {
           <button
             key={tab.id}
             onClick={() => setCategoryFilter(tab.id)}
-            className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
               categoryFilter === tab.id
-                ? "bg-purple-600 text-white shadow-xs"
-                : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50"
+                ? "glossy-btn glossy-btn-primary text-white shadow-xs"
+                : "glossy-btn glossy-btn-secondary text-zinc-400 hover:text-zinc-200"
             }`}
           >
             {tab.label}
@@ -353,8 +353,8 @@ export default function ClassPollsPage() {
       {/* Polls Feed */}
       <div className="space-y-4">
         {filteredPolls.length === 0 ? (
-          <div className="bg-white dark:bg-zinc-900 p-12 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-center text-zinc-400 text-xs">
-            <Vote className="w-10 h-10 mx-auto text-zinc-300 dark:text-zinc-700 mb-2" />
+          <div className="futuristic-card p-12 rounded-2xl border border-white/[0.08] text-center text-zinc-400 text-xs">
+            <Vote className="w-10 h-10 mx-auto text-zinc-600 mb-2" />
             No active polls found for {categoryFilter === "ALL" ? "this class" : categoryFilter.replace("_", " ")}.
           </div>
         ) : (
@@ -370,7 +370,7 @@ export default function ClassPollsPage() {
             return (
               <div
                 key={poll.id}
-                className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-4 transition-all"
+                className="futuristic-card p-5 rounded-2xl border border-white/[0.08] shadow-xs space-y-4 transition-all"
               >
                 {/* Poll Card Header */}
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-zinc-100 dark:border-zinc-800">
@@ -457,14 +457,14 @@ export default function ClassPollsPage() {
                             });
                           }
                         }}
-                        className={`p-3 rounded-xl border relative overflow-hidden transition-all ${
+                        className={`interactive-tile p-3 rounded-xl border relative overflow-hidden transition-all ${
                           !hasVoted && !isClosed && canVote
                             ? isPickedRadio
-                              ? "border-purple-500 ring-2 ring-purple-500/20 bg-purple-50/20 cursor-pointer"
-                              : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 cursor-pointer bg-zinc-50/50 dark:bg-zinc-800/30"
+                              ? "border-purple-500 ring-2 ring-purple-500/20 bg-purple-950/30 cursor-pointer"
+                              : "border-white/10 hover:border-purple-500/30 cursor-pointer bg-white/[0.02]"
                             : isSelectedByMe
-                            ? "border-purple-400 bg-purple-50/30 dark:bg-purple-950/20"
-                            : "border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-800/20"
+                            ? "border-purple-500/50 bg-purple-950/20"
+                            : "border-white/5 bg-white/[0.01]"
                         }`}
                       >
                         {/* Background Progress Fill Bar */}
@@ -472,8 +472,8 @@ export default function ClassPollsPage() {
                           <div
                             className={`absolute inset-y-0 left-0 transition-all duration-700 ${
                               isSelectedByMe
-                                ? "bg-purple-500/15 dark:bg-purple-500/20"
-                                : "bg-zinc-200/50 dark:bg-zinc-700/30"
+                                ? "bg-purple-500/20"
+                                : "bg-white/[0.06]"
                             }`}
                             style={{ width: `${percentage}%` }}
                           />
@@ -486,8 +486,8 @@ export default function ClassPollsPage() {
                                 <div
                                   className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
                                     isPickedRadio
-                                      ? "border-purple-600 bg-purple-600 text-white"
-                                      : "border-zinc-300 dark:border-zinc-600"
+                                      ? "border-purple-500 bg-purple-600 text-white"
+                                      : "border-zinc-500"
                                   }`}
                                 >
                                   {isPickedRadio && <Check className="w-2.5 h-2.5 stroke-[3]" />}
@@ -502,8 +502,8 @@ export default function ClassPollsPage() {
                             <span
                               className={`font-semibold ${
                                 isSelectedByMe
-                                  ? "text-purple-900 dark:text-purple-200 font-bold"
-                                  : "text-zinc-800 dark:text-zinc-200"
+                                  ? "text-purple-300 font-bold"
+                                  : "text-zinc-200"
                               }`}
                             >
                               {option.text}
@@ -511,9 +511,9 @@ export default function ClassPollsPage() {
                           </div>
 
                           {(hasVoted || isClosed) && (
-                            <div className="font-mono text-xs font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-2 shrink-0">
+                            <div className="font-mono text-xs font-bold text-zinc-300 flex items-center gap-2 shrink-0">
                               <span>{option.votes} votes</span>
-                              <span className="text-purple-600 dark:text-purple-400 w-10 text-right">
+                              <span className="text-purple-400 w-10 text-right">
                                 {percentage}%
                               </span>
                             </div>
@@ -531,19 +531,19 @@ export default function ClassPollsPage() {
                       <button
                         onClick={() => handleVote(poll.id)}
                         disabled={!selectedVotes[poll.id]}
-                        className="px-4 py-2 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all"
+                        className="glossy-btn glossy-btn-primary shine-sweep px-4 py-2 rounded-xl font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                       >
                         Cast My Vote
                       </button>
                     ) : (
-                      <span className="text-amber-600 dark:text-amber-400 text-[11px] font-medium flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-900/60">
+                      <span className="text-amber-400 text-[11px] font-medium flex items-center gap-1.5 bg-amber-950/40 px-2.5 py-1 rounded-lg border border-amber-800/60">
                         <AlertTriangle className="w-3.5 h-3.5" />
                         Voting restricted to {poll.branchCode} {poll.section}
                       </span>
                     )
                   ) : (
                     <span className="text-zinc-400 text-[11px] flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                       {hasVoted ? "You have voted in this poll" : "Poll concluded"}
                     </span>
                   )}
@@ -568,42 +568,42 @@ export default function ClassPollsPage() {
           }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto"
         >
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
-              <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <Vote className="w-5 h-5 text-purple-600" />
+          <div className="futuristic-card rounded-2xl shadow-2xl border border-white/10 max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Vote className="w-5 h-5 text-purple-400" />
                 Launch Class Poll
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-600"
+                className="icon-btn-glossy p-1.5 rounded-lg text-zinc-400 hover:text-white"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-zinc-500">
-              Create a democratic poll for <span className="font-bold text-purple-700">{profile.branchCode} {profile.section}</span>. Classmates can vote once and see real-time percentages.
+            <p className="text-xs text-zinc-400">
+              Create a democratic poll for <span className="font-bold text-purple-400">{profile.branchCode} {profile.section}</span>. Classmates can vote once and see real-time percentages.
             </p>
 
             <div className="space-y-3.5 text-xs">
               <div>
-                <label className="font-semibold block mb-1">Poll Question / Title</label>
+                <label className="font-semibold block mb-1 text-zinc-300">Poll Question / Title</label>
                 <input
                   type="text"
                   placeholder="e.g. Mass bunk Friday Period 6 & 7 for cultural fest?"
                   value={pollTitle}
                   onChange={(e) => setPollTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg font-medium"
+                  className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-lg font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
                 />
               </div>
 
               <div>
-                <label className="font-semibold block mb-1">Category</label>
+                <label className="font-semibold block mb-1 text-zinc-300">Category</label>
                 <select
                   value={pollCategory}
                   onChange={(e) => setPollCategory(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+                  className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer"
                 >
                   <option value="MASS_BUNK">Mass Bunk Consensus</option>
                   <option value="RESCHEDULE">Class / Lab Rescheduling</option>
@@ -613,24 +613,24 @@ export default function ClassPollsPage() {
               </div>
 
               <div>
-                <label className="font-semibold block mb-1">Description (Optional)</label>
+                <label className="font-semibold block mb-1 text-zinc-300">Description (Optional)</label>
                 <textarea
                   rows={2}
                   placeholder="Provide context or explanation for the vote..."
                   value={pollDescription}
                   onChange={(e) => setPollDescription(e.target.value)}
-                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+                  className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="font-semibold">Poll Options (2 - 5)</label>
+                  <label className="font-semibold text-zinc-300">Poll Options (2 - 5)</label>
                   {pollOptions.length < 5 && (
                     <button
                       type="button"
                       onClick={handleAddOption}
-                      className="text-[11px] font-bold text-purple-600 hover:text-purple-700"
+                      className="text-[11px] font-bold text-purple-400 hover:text-purple-300 transition-colors"
                     >
                       + Add Option
                     </button>
@@ -648,13 +648,13 @@ export default function ClassPollsPage() {
                           updated[idx] = e.target.value;
                           setPollOptions(updated);
                         }}
-                        className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+                        className="flex-1 px-3 py-2 bg-zinc-900 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
                       />
                       {pollOptions.length > 2 && (
                         <button
                           type="button"
                           onClick={() => handleRemoveOption(idx)}
-                          className="p-2 text-zinc-400 hover:text-rose-500 rounded-lg"
+                          className="icon-btn-glossy p-2 text-zinc-400 hover:text-rose-400 rounded-lg"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -665,16 +665,16 @@ export default function ClassPollsPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/[0.08]">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
+                className="glossy-btn glossy-btn-secondary px-3.5 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 rounded-lg"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreatePoll}
-                className="px-4 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-lg shadow-sm"
+                className="glossy-btn glossy-btn-primary shine-sweep px-4 py-2 text-xs font-bold text-white rounded-lg shadow-sm"
               >
                 Launch Poll to Class
               </button>

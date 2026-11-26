@@ -89,15 +89,15 @@ export default function TodayClassTimeline({
           <div className="flex items-center gap-1.5 self-start sm:self-auto">
             <button
               onClick={() => onMarkAll("PRESENT")}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-emerald-400 bg-emerald-950/40 hover:bg-emerald-950/80 border border-emerald-500/20 transition-colors"
+              className="glossy-btn glossy-btn-emerald shine-sweep px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
             >
-              All Present
+              <Check className="w-3 h-3" /> All Present
             </button>
             <button
               onClick={() => onMarkAll("ABSENT")}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-rose-400 bg-rose-950/40 hover:bg-rose-950/80 border border-rose-500/20 transition-colors"
+              className="glossy-btn glossy-btn-rose shine-sweep px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
             >
-              All Absent
+              <X className="w-3 h-3" /> All Absent
             </button>
           </div>
         )}
@@ -123,15 +123,15 @@ export default function TodayClassTimeline({
           return (
             <div
               key={slotKey}
-              className={`p-3 rounded-xl border transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+              className={`interactive-tile p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                 isOngoing
-                  ? "bg-indigo-950/30 border-indigo-500/40 shadow-[0_0_20px_rgba(99,102,241,0.15)]"
+                  ? "bg-indigo-950/30 border-indigo-500/40 shadow-[0_0_24px_rgba(99,102,241,0.2)]"
                   : isNext
-                  ? "bg-cyan-950/20 border-cyan-500/30"
+                  ? "bg-cyan-950/20 border-cyan-500/30 shadow-[0_0_18px_rgba(6,182,212,0.15)]"
                   : status === "PRESENT"
-                  ? "bg-emerald-950/15 border-emerald-500/20"
+                  ? "bg-emerald-950/15 border-emerald-500/25"
                   : status === "ABSENT"
-                  ? "bg-rose-950/15 border-rose-500/20"
+                  ? "bg-rose-950/15 border-rose-500/25"
                   : status === "CANCELLED"
                   ? "bg-zinc-900/40 border-white/5 opacity-60"
                   : "bg-white/[0.02] border-white/[0.06] hover:border-white/15"
@@ -208,10 +208,10 @@ export default function TodayClassTimeline({
                 <button
                   type="button"
                   onClick={() => onStatusChange(slot, "PRESENT")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
+                  className={`glossy-btn px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer ${
                     status === "PRESENT"
-                      ? "bg-emerald-600 text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]"
-                      : "bg-zinc-900 border border-white/5 text-zinc-400 hover:text-emerald-300 hover:border-emerald-500/30"
+                      ? "glossy-btn-emerald shine-sweep"
+                      : "glossy-btn-secondary text-zinc-400 hover:text-emerald-300 hover:border-emerald-500/40"
                   }`}
                   aria-label={`Mark period ${slot.period} present`}
                 >
@@ -221,10 +221,10 @@ export default function TodayClassTimeline({
                 <button
                   type="button"
                   onClick={() => onStatusChange(slot, "ABSENT")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
+                  className={`glossy-btn px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer ${
                     status === "ABSENT"
-                      ? "bg-rose-600 text-white shadow-[0_0_12px_rgba(244,63,94,0.4)]"
-                      : "bg-zinc-900 border border-white/5 text-zinc-400 hover:text-rose-300 hover:border-rose-500/30"
+                      ? "glossy-btn-rose shine-sweep"
+                      : "glossy-btn-secondary text-zinc-400 hover:text-rose-300 hover:border-rose-500/40"
                   }`}
                   aria-label={`Mark period ${slot.period} absent`}
                 >
@@ -234,10 +234,10 @@ export default function TodayClassTimeline({
                 <button
                   type="button"
                   onClick={() => onStatusChange(slot, "CANCELLED")}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`glossy-btn glossy-btn-secondary px-2.5 py-1.5 rounded-xl text-xs font-medium cursor-pointer ${
                     status === "CANCELLED"
-                      ? "bg-zinc-700 text-white"
-                      : "bg-zinc-900 border border-white/5 text-zinc-500 hover:text-zinc-300"
+                      ? "border-zinc-500 text-white bg-zinc-700/80"
+                      : "text-zinc-500 hover:text-zinc-300"
                   }`}
                   title="Mark cancelled by faculty or mass bunk"
                   aria-label={`Mark period ${slot.period} cancelled`}

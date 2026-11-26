@@ -609,7 +609,7 @@ export default function TimetableManagementPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleResetToOfficial}
-            className="px-3 py-2 rounded-xl text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors border border-zinc-200 dark:border-zinc-700 flex items-center gap-1.5"
+            className="glossy-btn glossy-btn-secondary px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
             title="Revert all personal modifications to official MMMUT university timetable"
           >
             <RotateCcw className="w-3.5 h-3.5" /> Revert to Official
@@ -618,7 +618,7 @@ export default function TimetableManagementPage() {
           {(profile.role === "class_admin" || profile.role === "admin") && (
             <button
               onClick={handlePublishForEntireClass}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 shadow-md shadow-purple-600/25 transition-all flex items-center gap-1.5"
+              className="glossy-btn glossy-btn-cyan shine-sweep px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
               title="Publish timetable changes to the official schedule for your entire class"
             >
               <Sparkles className="w-4 h-4" /> Publish to Entire Class ({profile.branchCode} {profile.section})
@@ -627,7 +627,7 @@ export default function TimetableManagementPage() {
 
           <button
             onClick={handleSaveAndActivate}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all flex items-center gap-1.5"
+            className="glossy-btn glossy-btn-primary shine-sweep px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
           >
             <Save className="w-4 h-4" /> Save Personal Timetable
           </button>
@@ -663,26 +663,26 @@ export default function TimetableManagementPage() {
       )}
 
       {/* Control Strip: View Mode, Date Picker, Batch Filter */}
-      <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 flex flex-wrap items-center justify-between gap-4 text-xs">
+      <div className="futuristic-card p-4 rounded-2xl border border-white/[0.08] flex flex-wrap items-center justify-between gap-4 text-xs">
         {/* Left: View Mode Switcher */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-white dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
+          <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/[0.08]">
             <button
               onClick={() => setViewMode("WEEKLY")}
-              className={`px-3 py-1.5 rounded-md font-bold transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 viewMode === "WEEKLY"
-                  ? "bg-indigo-600 text-white shadow-xs"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                  ? "glossy-btn glossy-btn-primary text-white"
+                  : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
               }`}
             >
               <Layers className="w-3.5 h-3.5" /> Recurring Weekly
             </button>
             <button
               onClick={() => setViewMode("DATE")}
-              className={`px-3 py-1.5 rounded-md font-bold transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 viewMode === "DATE"
-                  ? "bg-indigo-600 text-white shadow-xs"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                  ? "glossy-btn glossy-btn-primary text-white"
+                  : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
               }`}
             >
               <CalendarDays className="w-3.5 h-3.5" /> Date Schedule (One-Time & Extras)
@@ -690,23 +690,23 @@ export default function TimetableManagementPage() {
           </div>
 
           {/* Batch Selector */}
-          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-700">
+          <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/[0.08]">
             <button
               onClick={() => setSelectedBatchFilter("MY_BATCH")}
-              className={`px-2.5 py-1 rounded-md font-bold transition-colors ${
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
                 selectedBatchFilter === "MY_BATCH"
-                  ? "bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900"
-                  : "text-zinc-600 dark:text-zinc-400"
+                  ? "glossy-btn glossy-btn-primary text-white"
+                  : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
               }`}
             >
               Batch {profile.batch}
             </button>
             <button
               onClick={() => setSelectedBatchFilter("ALL")}
-              className={`px-2.5 py-1 rounded-md font-bold transition-colors ${
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
                 selectedBatchFilter === "ALL"
-                  ? "bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900"
-                  : "text-zinc-600 dark:text-zinc-400"
+                  ? "glossy-btn glossy-btn-primary text-white"
+                  : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
               }`}
             >
               All Batches
@@ -716,10 +716,10 @@ export default function TimetableManagementPage() {
 
         {/* Right: Date Navigator (Active in Date View) */}
         {viewMode === "DATE" ? (
-          <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700">
+          <div className="flex items-center gap-2 bg-black/40 p-1.5 rounded-xl border border-white/[0.08] shadow-inner">
             <button
               onClick={() => changeDateByDays(-1)}
-              className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+              className="icon-btn-glossy p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
               title="Previous Day"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -728,18 +728,18 @@ export default function TimetableManagementPage() {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-xs font-bold text-zinc-800 dark:text-zinc-200 focus:outline-none px-1"
+              className="bg-transparent text-xs font-bold text-zinc-200 focus:outline-none px-1 cursor-pointer"
             />
             <button
               onClick={() => changeDateByDays(1)}
-              className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+              className="icon-btn-glossy p-1.5 rounded-lg text-zinc-400 hover:text-white cursor-pointer"
               title="Next Day"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
             <button
               onClick={() => openAddSlot(selectedDayName, 1, selectedDate)}
-              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg flex items-center gap-1 ml-1"
+              className="glossy-btn glossy-btn-primary shine-sweep px-3 py-1 font-bold text-white rounded-lg flex items-center gap-1 ml-1 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" /> Extra Class
             </button>

@@ -264,7 +264,7 @@ export default function SmartCalculatorPage() {
 
         {/* Sliders & Inputs */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-          <div className="space-y-2 p-4 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+          <div className="space-y-2 p-4 bg-emerald-950/20 rounded-2xl border border-emerald-500/20">
             <div className="flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300">
               <span>Future Classes You Will Attend</span>
               <span className="px-2 py-0.5 rounded bg-emerald-200 dark:bg-emerald-900 text-emerald-950 dark:text-emerald-100 font-mono text-sm">
@@ -286,7 +286,7 @@ export default function SmartCalculatorPage() {
             </div>
           </div>
 
-          <div className="space-y-2 p-4 bg-rose-50/50 dark:bg-rose-950/20 rounded-xl border border-rose-100 dark:border-rose-900/30">
+          <div className="space-y-2 p-4 bg-rose-950/20 rounded-2xl border border-rose-500/20">
             <div className="flex items-center justify-between text-xs font-bold text-rose-800 dark:text-rose-300">
               <span>Future Classes You Will Miss (Bunk)</span>
               <span className="px-2 py-0.5 rounded bg-rose-200 dark:bg-rose-900 text-rose-950 dark:text-rose-100 font-mono text-sm">
@@ -311,7 +311,7 @@ export default function SmartCalculatorPage() {
 
         {/* Quick What-If Scenarios */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-          <div className="p-3.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between">
+          <div className="interactive-tile futuristic-card p-3.5 rounded-2xl border border-white/[0.08] flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                 What if I miss the next class?
@@ -331,7 +331,7 @@ export default function SmartCalculatorPage() {
             </span>
           </div>
 
-          <div className="p-3.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700/60 flex items-center justify-between">
+          <div className="interactive-tile futuristic-card p-3.5 rounded-2xl border border-white/[0.08] flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                 What if I attend next 5 classes consecutively?

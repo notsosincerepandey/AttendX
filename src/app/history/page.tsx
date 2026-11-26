@@ -146,21 +146,21 @@ export default function AttendanceHistoryPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsExportModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 shadow-sm active:scale-[0.98]"
+            className="glossy-btn glossy-btn-emerald shine-sweep px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-400" /> Export Attendance
+            <FileSpreadsheet className="w-4 h-4 text-white" /> Export Attendance
           </button>
           <button
             onClick={handlePrint}
-            className="px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center gap-1.5 shadow-sm active:scale-[0.98]"
+            className="glossy-btn glossy-btn-primary shine-sweep px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
           >
-            <Printer className="w-4 h-4" /> Print PDF Report
+            <Printer className="w-4 h-4 text-white" /> Print PDF Report
           </button>
         </div>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+      <div className="futuristic-card p-4 rounded-2xl border border-white/[0.08] shadow-sm grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
         <div className="relative">
           <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
           <input
@@ -168,7 +168,7 @@ export default function AttendanceHistoryPage() {
             placeholder="Search subject or date..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full pl-9 pr-3 py-2 bg-black/40 border border-white/[0.08] rounded-xl text-zinc-200 focus:outline-none focus:border-indigo-500/50"
           />
         </div>
 
@@ -176,7 +176,7 @@ export default function AttendanceHistoryPage() {
           <select
             value={filterSubject}
             onChange={(e) => setFilterSubject(e.target.value)}
-            className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-2 bg-black/40 border border-white/[0.08] rounded-xl text-zinc-200 focus:outline-none focus:border-indigo-500/50"
           >
             <option value="ALL">All Subjects</option>
             {timetable.subjects.map((s) => (
@@ -191,7 +191,7 @@ export default function AttendanceHistoryPage() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-2 bg-black/40 border border-white/[0.08] rounded-xl text-zinc-200 focus:outline-none focus:border-indigo-500/50"
           >
             <option value="ALL">All Statuses</option>
             <option value="PRESENT">Present (+1)</option>
@@ -204,7 +204,7 @@ export default function AttendanceHistoryPage() {
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-2 bg-black/40 border border-white/[0.08] rounded-xl text-zinc-200 focus:outline-none focus:border-indigo-500/50"
           >
             <option value="ALL">All Categories</option>
             <option value="Theory">Theory Only</option>
@@ -215,9 +215,9 @@ export default function AttendanceHistoryPage() {
       </div>
 
       {/* Records Table */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs">
-          <span className="font-bold text-zinc-700 dark:text-zinc-300">
+      <div className="futuristic-card rounded-2xl border border-white/[0.08] shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-white/[0.06] flex items-center justify-between text-xs">
+          <span className="font-bold text-zinc-200">
             Showing {filteredRecords.length} records
           </span>
           <span className="text-zinc-400">
@@ -228,7 +228,7 @@ export default function AttendanceHistoryPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-zinc-200 dark:border-zinc-700 text-zinc-500 uppercase tracking-wider bg-zinc-50/70 dark:bg-zinc-800/40">
+              <tr className="border-b border-white/[0.08] text-zinc-400 uppercase tracking-wider bg-white/[0.02]">
                 <th className="py-3 px-4">Date</th>
                 <th className="py-3 px-4">Period</th>
                 <th className="py-3 px-4">Subject</th>

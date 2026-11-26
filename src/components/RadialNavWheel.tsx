@@ -253,23 +253,23 @@ export default function RadialNavWheel({ variant = "floating" }: RadialNavWheelP
                 onClick={() => handleNodeClick(node.href)}
                 onMouseEnter={() => setHoveredNode(node)}
                 onMouseLeave={() => setHoveredNode(null)}
-                className={`group absolute w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                className={`group absolute w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center transition-all duration-240 focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer ${
                   isActive
-                    ? "bg-zinc-800 border-2 shadow-lg scale-110"
-                    : "bg-[#0d0e14]/90 hover:bg-zinc-800/90 border border-white/10 hover:border-white/30 hover:scale-110"
+                    ? "bg-gradient-to-b from-zinc-700/90 to-zinc-800/90 border-2 shadow-xl scale-110"
+                    : "bg-gradient-to-b from-[#13141f]/95 to-[#0b0c12]/95 hover:from-zinc-800/90 hover:to-zinc-900/90 border border-white/10 hover:border-white/30 hover:scale-110 active:scale-95"
                 }`}
                 style={{
                   transform: `translate(${x}px, ${y}px)`,
                   borderColor: isActive ? node.accentColor : undefined,
                   boxShadow: isActive
-                    ? `0 0 20px -2px ${node.accentColor}55`
-                    : undefined,
+                    ? `0 0 24px -2px ${node.accentColor}66, inset 0 1px 0 0 rgba(255, 255, 255, 0.25)`
+                    : `0 4px 16px -2px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.12)`,
                 }}
                 title={node.label}
                 aria-label={node.label}
               >
                 <IconComponent
-                  className="w-5 h-5 transition-transform group-hover:scale-110"
+                  className="w-5 h-5 transition-all duration-200 group-hover:scale-110 group-hover:brightness-125"
                   style={{
                     color: isActive ? node.accentColor : "#d4d4d8",
                   }}
@@ -277,7 +277,7 @@ export default function RadialNavWheel({ variant = "floating" }: RadialNavWheelP
 
                 {/* Micro Label pill beneath or above node */}
                 <span
-                  className="absolute -bottom-5 sm:-bottom-6 whitespace-nowrap text-[9px] sm:text-[10px] font-medium tracking-tight text-zinc-300 px-1.5 py-0.5 rounded bg-black/60 border border-white/5 opacity-80 group-hover:opacity-100 transition-opacity"
+                  className="absolute -bottom-5 sm:-bottom-6 whitespace-nowrap text-[9px] sm:text-[10px] font-medium tracking-tight text-zinc-300 px-1.5 py-0.5 rounded-md bg-black/75 border border-white/10 opacity-80 group-hover:opacity-100 transition-opacity shadow-sm"
                   style={{
                     color: isActive ? node.accentColor : undefined,
                   }}
@@ -293,11 +293,16 @@ export default function RadialNavWheel({ variant = "floating" }: RadialNavWheelP
         <button
           type="button"
           onClick={toggleWheel}
-          className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer ${
+          className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all duration-240 focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer shadow-xl ${
             isOpen
-              ? "bg-zinc-900 border border-white/20 shadow-2xl scale-105"
-              : "bg-gradient-to-tr from-indigo-950 via-zinc-900 to-zinc-950 border border-indigo-500/30 animate-orb-breathe"
+              ? "bg-gradient-to-b from-zinc-800 to-zinc-900 border border-white/20 shadow-2xl scale-105 active:scale-95"
+              : "bg-gradient-to-tr from-indigo-950 via-zinc-900 to-zinc-950 border border-indigo-500/30 animate-orb-breathe hover:scale-106 active:scale-95"
           }`}
+          style={{
+            boxShadow: isOpen
+              ? "0 0 28px 2px rgba(99, 102, 241, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.3)"
+              : undefined,
+          }}
           aria-expanded={isOpen}
           aria-label={isOpen ? "Close Navigation Wheel" : "Open Radial Navigation Wheel"}
         >

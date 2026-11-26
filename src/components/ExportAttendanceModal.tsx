@@ -248,7 +248,7 @@ export default function ExportAttendanceModal({
         <button
           onClick={onClose}
           disabled={isExporting}
-          className="absolute top-5 right-5 text-zinc-400 hover:text-white p-1.5 rounded-xl hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+          className="absolute top-5 right-5 text-zinc-400 hover:text-white p-1.5 rounded-xl icon-btn-glossy disabled:opacity-40 cursor-pointer"
           aria-label="Close dialog"
         >
           <X className="w-5 h-5" />
@@ -400,7 +400,7 @@ export default function ExportAttendanceModal({
             type="button"
             onClick={() => setSelectedFormat("xlsx")}
             disabled={isExporting}
-            className={`p-3.5 rounded-2xl border text-left transition-all relative flex items-center gap-3.5 ${
+            className={`interactive-tile p-3.5 rounded-2xl border text-left transition-all relative flex items-center gap-3.5 cursor-pointer ${
               selectedFormat === "xlsx"
                 ? "bg-emerald-500/10 border-emerald-500/40 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500/30"
                 : "bg-white/[0.02] border-white/[0.06] hover:border-white/20 hover:bg-white/[0.04]"
@@ -425,7 +425,7 @@ export default function ExportAttendanceModal({
             type="button"
             onClick={() => setSelectedFormat("csv")}
             disabled={isExporting}
-            className={`p-3.5 rounded-2xl border text-left transition-all relative flex items-center gap-3.5 ${
+            className={`interactive-tile p-3.5 rounded-2xl border text-left transition-all relative flex items-center gap-3.5 cursor-pointer ${
               selectedFormat === "csv"
                 ? "bg-cyan-500/10 border-cyan-500/40 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-500/30"
                 : "bg-white/[0.02] border-white/[0.06] hover:border-white/20 hover:bg-white/[0.04]"
@@ -545,7 +545,7 @@ export default function ExportAttendanceModal({
             type="button"
             onClick={onClose}
             disabled={isExporting}
-            className="px-4 py-2 text-xs font-semibold text-zinc-400 hover:text-white rounded-xl border border-white/[0.08] hover:bg-white/[0.04] transition-colors disabled:opacity-50"
+            className="glossy-btn glossy-btn-secondary px-4 py-2 text-xs font-semibold rounded-xl cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
@@ -558,11 +558,9 @@ export default function ExportAttendanceModal({
               selectedSubjects.length === 0 ||
               matrixRows.length === 0
             }
-            className={`px-5 py-2 text-xs font-semibold text-white rounded-xl shadow-lg transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
-              selectedFormat === "xlsx"
-                ? "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/25"
-                : "bg-cyan-600 hover:bg-cyan-500 shadow-cyan-600/25"
-            }`}
+            className={`glossy-btn ${
+              selectedFormat === "xlsx" ? "glossy-btn-emerald" : "glossy-btn-cyan"
+            } shine-sweep px-5 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             {isExporting ? (
               <>

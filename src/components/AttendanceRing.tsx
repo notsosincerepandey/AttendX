@@ -159,17 +159,17 @@ export default function AttendanceRing({
             Attendance ledger active. Log today&apos;s lectures to initialize metrics.
           </p>
         ) : safeAbsences > 0 ? (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-950/40 border border-emerald-500/20 text-xs text-emerald-300 font-medium">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-b from-emerald-950/60 to-emerald-950/30 border border-emerald-500/30 text-xs text-emerald-300 font-medium shadow-sm hover:scale-[1.02] transition-transform">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <b>+{safeAbsences}</b> safe absences remaining above 75%
           </div>
         ) : recoveryNeeded > 0 ? (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-950/40 border border-rose-500/20 text-xs text-rose-300 font-medium">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-b from-rose-950/60 to-rose-950/30 border border-rose-500/30 text-xs text-rose-300 font-medium shadow-sm hover:scale-[1.02] transition-transform">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
             Must attend next <b>{recoveryNeeded}</b> classes to restore 75%
           </div>
         ) : (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-zinc-900 border border-white/10 text-xs text-zinc-400 font-medium">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-b from-zinc-900 to-zinc-950 border border-white/10 text-xs text-zinc-300 font-medium shadow-sm hover:scale-[1.02] transition-transform">
             Precisely at 75% statutory boundary
           </div>
         )}

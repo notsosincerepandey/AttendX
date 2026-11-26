@@ -277,7 +277,7 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold nav-item-glossy ${
                     isActive
                       ? "bg-white/[0.08] text-white border border-white/10 font-bold shadow-xs"
                       : "text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.04]"
@@ -296,7 +296,7 @@ export default function Navbar() {
             <div className="relative" ref={notifRef}>
               <button
                 onClick={() => setIsNotifOpen(!isNotifOpen)}
-                className="relative p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="relative p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 icon-btn-glossy"
                 title="Notifications"
                 aria-label="View notifications"
               >
@@ -395,7 +395,7 @@ export default function Navbar() {
               <>
                 <button
                   onClick={() => setIsProfileModalOpen(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 hover:border-indigo-500/40 bg-zinc-900/80 transition-all text-left group"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/10 hover:border-indigo-500/40 bg-zinc-900/80 nav-item-glossy text-left group shadow-sm hover:shadow-indigo-500/10"
                 >
                   <div
                     className={`w-7 h-7 rounded-lg font-bold flex items-center justify-center text-xs shadow-sm text-white ${
@@ -431,7 +431,7 @@ export default function Navbar() {
                 {/* Logout Button */}
                 <button
                   onClick={logoutUser}
-                  className="p-2 rounded-xl text-zinc-500 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+                  className="p-2 rounded-xl text-zinc-500 hover:text-rose-400 hover:bg-rose-950/40 icon-btn-glossy"
                   title="Sign Out"
                 >
                   <LogOut className="w-4 h-4" />
@@ -440,7 +440,7 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/login"
-                className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center gap-1.5 shadow-sm"
+                className="glossy-btn glossy-btn-primary shine-sweep px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5"
               >
                 <LogIn className="w-4 h-4" /> Log In
               </Link>

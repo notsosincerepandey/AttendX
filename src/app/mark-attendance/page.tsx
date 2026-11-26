@@ -169,10 +169,10 @@ export default function MarkAttendancePage() {
         </div>
 
         {/* Date Navigator */}
-        <div className="flex items-center gap-2 bg-zinc-900/90 p-1.5 rounded-xl border border-white/10">
+        <div className="flex items-center gap-2 bg-zinc-900/90 p-1.5 rounded-xl border border-white/10 shadow-inner">
           <button
             onClick={() => changeDateByDays(-1)}
-            className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white"
+            className="icon-btn-glossy p-1.5 rounded-lg text-zinc-400 hover:text-white"
             title="Previous Day"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -181,11 +181,11 @@ export default function MarkAttendancePage() {
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="bg-transparent text-xs font-bold text-zinc-200 focus:outline-none px-1"
+            className="bg-transparent text-xs font-bold text-zinc-200 focus:outline-none px-1 cursor-pointer"
           />
           <button
             onClick={() => changeDateByDays(1)}
-            className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white"
+            className="icon-btn-glossy p-1.5 rounded-lg text-zinc-400 hover:text-white"
             title="Next Day"
           >
             <ChevronRight className="w-4 h-4" />
@@ -195,9 +195,9 @@ export default function MarkAttendancePage() {
 
       {/* Quick Marking Actions Bar */}
       {scheduledSlots.length > 0 && (
-        <div className="bg-gradient-to-r from-indigo-50 to-sky-50 dark:from-indigo-950/30 dark:to-sky-950/30 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/40 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-xs text-zinc-700 dark:text-zinc-300">
-            <span className="font-bold text-indigo-700 dark:text-indigo-300">{scheduledSlots.length} Classes</span> scheduled for <span className="font-semibold">{selectedDayName}</span> ({profile.branchCode} {profile.section}, Batch {profile.batch})
+        <div className="futuristic-card p-4 rounded-xl border border-indigo-500/20 bg-gradient-to-r from-indigo-950/20 via-sky-950/20 to-purple-950/20 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-xs text-zinc-300">
+            <span className="font-bold text-indigo-400">{scheduledSlots.length} Classes</span> scheduled for <span className="font-semibold text-white">{selectedDayName}</span> ({profile.branchCode} {profile.section}, Batch {profile.batch})
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -206,25 +206,25 @@ export default function MarkAttendancePage() {
                 const updated = markAllPeriodsForDate(selectedDate, "PRESENT");
                 setRecords(updated);
               }}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm"
+              className="glossy-btn glossy-btn-emerald shine-sweep px-3.5 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm flex items-center gap-1.5"
             >
-              Mark All Present (+{scheduledSlots.length})
+              <CheckCircle2 className="w-3.5 h-3.5" /> Mark All Present (+{scheduledSlots.length})
             </button>
             <button
               onClick={() => {
                 const updated = markAllPeriodsForDate(selectedDate, "ABSENT");
                 setRecords(updated);
               }}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors shadow-sm"
+              className="glossy-btn glossy-btn-rose shine-sweep px-3.5 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm flex items-center gap-1.5"
             >
-              Mark All Absent
+              <XCircle className="w-3.5 h-3.5" /> Mark All Absent
             </button>
             <button
               onClick={() => {
                 const updated = markAllPeriodsForDate(selectedDate, "CANCELLED");
                 setRecords(updated);
               }}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors shadow-sm border border-zinc-300 dark:border-zinc-700"
+              className="glossy-btn glossy-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-300 shadow-sm"
             >
               Mark All Cancelled
             </button>
@@ -242,22 +242,22 @@ export default function MarkAttendancePage() {
             return (
               <div
                 key={subCode}
-                className="p-4 bg-teal-50 dark:bg-teal-950/30 rounded-xl border border-teal-200 dark:border-teal-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                className="futuristic-card p-4 rounded-xl border border-teal-500/20 bg-gradient-to-r from-teal-950/20 to-emerald-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-teal-600 text-white rounded-lg">
+                  <div className="p-2.5 bg-teal-500/20 border border-teal-500/30 text-teal-300 rounded-lg shadow-sm">
                     <FlaskConical className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black uppercase text-teal-800 dark:text-teal-300">
+                      <span className="text-xs font-black uppercase text-teal-300">
                         Multi-Period Lab Session: {subCode}
                       </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-200/60 dark:bg-teal-900/60 text-teal-900 dark:text-teal-200">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-900/60 text-teal-200 border border-teal-700/50">
                         {periodsForLab.length} Consecutive Periods ({periodsForLab.map(p => `P${p.period}`).join(", ")})
                       </span>
                     </div>
-                    <p className="text-xs text-teal-700 dark:text-teal-400 mt-0.5">
+                    <p className="text-xs text-teal-400 mt-0.5">
                       {firstLabSlot.subjectName} in {firstLabSlot.room}. Each period constitutes 1 discrete attendance unit ({periodsForLab.length} units total).
                     </p>
                   </div>
@@ -269,18 +269,18 @@ export default function MarkAttendancePage() {
                       const updated = markLabSession(selectedDate, subCode, "PRESENT");
                       setRecords(updated);
                     }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-colors"
+                    className="glossy-btn glossy-btn-primary shine-sweep px-3.5 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm flex items-center gap-1.5"
                   >
-                    Mark Entire Lab Present
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Mark Entire Lab Present
                   </button>
                   <button
                     onClick={() => {
                       const updated = markLabSession(selectedDate, subCode, "ABSENT");
                       setRecords(updated);
                     }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors"
+                    className="glossy-btn glossy-btn-rose shine-sweep px-3.5 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm flex items-center gap-1.5"
                   >
-                    Mark Lab Absent
+                    <XCircle className="w-3.5 h-3.5" /> Mark Lab Absent
                   </button>
                 </div>
               </div>
@@ -290,11 +290,11 @@ export default function MarkAttendancePage() {
       )}
 
       {/* Scheduled Periods Table / Cards */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+      <div className="futuristic-card rounded-2xl border border-white/[0.08] shadow-sm overflow-hidden">
         {scheduledSlots.length === 0 ? (
           <div className="py-16 text-center text-zinc-500">
-            <Calendar className="w-12 h-12 mx-auto text-zinc-300 dark:text-zinc-700 mb-3" />
-            <h3 className="text-base font-bold text-zinc-800 dark:text-zinc-200">
+            <Calendar className="w-12 h-12 mx-auto text-zinc-600 mb-3" />
+            <h3 className="text-base font-bold text-zinc-200">
               No classes scheduled on {selectedDayName}
             </h3>
             <p className="text-xs text-zinc-400 max-w-sm mx-auto mt-1">
@@ -302,7 +302,7 @@ export default function MarkAttendancePage() {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <div className="divide-y divide-white/[0.06]">
             {scheduledSlots.map((slot) => {
               const record = dayRecords.find((r) => {
                 if (slot.occurrenceId && r.occurrenceId) {
@@ -315,47 +315,47 @@ export default function MarkAttendancePage() {
               return (
                 <div
                   key={slot.occurrenceId || `${slot.period}-${slot.subjectCode}`}
-                  className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${
+                  className={`interactive-tile p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200 ${
                     status === "PRESENT"
-                      ? "bg-emerald-50/20"
+                      ? "bg-emerald-500/[0.06] border-l-4 border-l-emerald-500"
                       : status === "ABSENT"
-                      ? "bg-rose-50/20"
+                      ? "bg-rose-500/[0.06] border-l-4 border-l-rose-500"
                       : status === "CANCELLED"
-                      ? "bg-zinc-100/40 dark:bg-zinc-800/20 opacity-70"
+                      ? "bg-zinc-800/30 opacity-70 border-l-4 border-l-zinc-600"
                       : ""
                   }`}
                 >
                   {/* Slot Information */}
                   <div className="flex items-start gap-4">
-                    <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-center shrink-0">
-                      <span className="text-[10px] font-bold text-zinc-500 uppercase">Period</span>
-                      <span className="text-lg font-black text-zinc-900 dark:white">
+                    <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-white/[0.03] border border-white/10 text-center shrink-0 shadow-inner">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Period</span>
+                      <span className="text-lg font-black text-white">
                         {slot.period}
                       </span>
                     </div>
 
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                        <span className="font-mono text-xs font-bold text-indigo-400">
                           {slot.subjectCode}
                         </span>
                         {slot.isOneTime && (
-                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-violet-950 text-violet-300 border border-violet-800/60">
                             Extra Class
                           </span>
                         )}
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             slot.category === "Lab"
-                              ? "bg-teal-100 text-teal-800 dark:bg-teal-950/80 dark:text-teal-300"
+                              ? "bg-teal-950/80 text-teal-300 border border-teal-800/50"
                               : slot.category === "Tutorial"
-                              ? "bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300"
-                              : "bg-indigo-100 text-indigo-800 dark:bg-indigo-950/80 dark:text-indigo-300"
+                              ? "bg-amber-950/80 text-amber-300 border border-amber-800/50"
+                              : "bg-indigo-950/80 text-indigo-300 border border-indigo-800/50"
                           }`}
                         >
                           {slot.category}
                         </span>
-                        <span className="text-xs font-mono text-zinc-500">
+                        <span className="text-xs font-mono text-zinc-400">
                           Room: {slot.room}
                         </span>
                         <span className="text-xs text-zinc-400">
@@ -363,24 +363,24 @@ export default function MarkAttendancePage() {
                         </span>
                       </div>
 
-                      <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
+                      <h3 className="font-bold text-sm text-zinc-100">
                         {slot.subjectName}
                       </h3>
                       {slot.faculty && (
-                        <p className="text-xs text-zinc-500">Faculty: {slot.faculty}</p>
+                        <p className="text-xs text-zinc-400">Faculty: {slot.faculty}</p>
                       )}
                     </div>
                   </div>
 
                   {/* Actions / Status */}
                   <div className="flex items-center gap-2 self-end md:self-center">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleStatusChange(slot, "PRESENT")}
                         className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                           status === "PRESENT"
-                            ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 ring-2 ring-emerald-500/40"
-                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-emerald-50 hover:text-emerald-700"
+                            ? "glossy-btn glossy-btn-emerald ring-2 ring-emerald-500/40 text-white shadow-md shadow-emerald-950/30"
+                            : "glossy-btn glossy-btn-secondary text-zinc-300 hover:text-emerald-400 hover:border-emerald-500/30"
                         }`}
                       >
                         <CheckCircle2 className="w-4 h-4" /> Present (+1)
@@ -389,8 +389,8 @@ export default function MarkAttendancePage() {
                         onClick={() => handleStatusChange(slot, "ABSENT")}
                         className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                           status === "ABSENT"
-                            ? "bg-rose-600 text-white shadow-md shadow-rose-600/20 ring-2 ring-rose-500/40"
-                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-rose-50 hover:text-rose-700"
+                            ? "glossy-btn glossy-btn-rose ring-2 ring-rose-500/40 text-white shadow-md shadow-rose-950/30"
+                            : "glossy-btn glossy-btn-secondary text-zinc-300 hover:text-rose-400 hover:border-rose-500/30"
                         }`}
                       >
                         <XCircle className="w-4 h-4" /> Absent
@@ -399,8 +399,8 @@ export default function MarkAttendancePage() {
                         onClick={() => handleStatusChange(slot, "CANCELLED")}
                         className={`px-3 py-2 rounded-xl text-xs font-medium transition-all ${
                           status === "CANCELLED"
-                            ? "bg-zinc-700 text-white"
-                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                            ? "glossy-btn ring-2 ring-zinc-500/40 bg-zinc-700 text-white"
+                            : "glossy-btn glossy-btn-secondary text-zinc-400 hover:text-zinc-200"
                         }`}
                         title="Exclude from attendance calculations"
                       >
