@@ -30,6 +30,7 @@ import {
   Calendar,
 } from "lucide-react";
 import RadialNavWheel from "@/components/RadialNavWheel";
+import ExportAttendanceModal from "@/components/ExportAttendanceModal";
 
 export default function AttendanceHistoryPage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -42,6 +43,9 @@ export default function AttendanceHistoryPage() {
   const [filterSubject, setFilterSubject] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterCategory, setFilterCategory] = useState("ALL");
+
+  // Export Modal state
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Edit record state
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
@@ -121,50 +125,6 @@ export default function AttendanceHistoryPage() {
     setEditReason("");
   };
 
-  // CSV Export
-  const exportToCSV = () => {
-    const headers = [
-      "Date",
-      "Period",
-      "Subject Code",
-      "Subject Name",
-      "Category",
-      "Room",
-      "Batch",
-      "Status",
-      "Marked By",
-      "Marked At",
-    ];
-
-    const rows = filteredRecords.map((r) => [
-      r.date,
-      `Period ${r.period}`,
-      `"${r.subjectCode}"`,
-      `"${r.subjectName}"`,
-      r.category,
-      `"${r.room}"`,
-      r.batch,
-      r.status,
-      r.markedBy,
-      r.markedAt,
-    ]);
-
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `AttendX_Report_${profile.branchCode}_${profile.section}_${profile.batch}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const handlePrint = () => {
     window.print();
   };
@@ -185,14 +145,14 @@ export default function AttendanceHistoryPage() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={exportToCSV}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors flex items-center gap-1.5 shadow-xs"
+            onClick={() => setIsExportModalOpen(true)}
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 shadow-sm active:scale-[0.98]"
           >
-            <FileSpreadsheet className="w-4 h-4" /> Export CSV / Excel
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" /> Export Attendance
           </button>
           <button
             onClick={handlePrint}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shadow-sm"
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center gap-1.5 shadow-sm active:scale-[0.98]"
           >
             <Printer className="w-4 h-4" /> Print PDF Report
           </button>
@@ -479,6 +439,19 @@ export default function AttendanceHistoryPage() {
           </div>
         </div>
       )}
+      {/* Attendance Export Modal */}
+      <ExportAttendanceModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        records={filteredRecords}
+        filterDescription={
+          filterSubject !== "ALL" || filterStatus !== "ALL" || filterCategory !== "ALL" || searchQuery
+            ? `Filtered (${filteredRecords.length} of ${records.length} records)`
+            : `All records (${records.length} total)`
+        }
+        studentName={profile.fullName}
+      />
+
       {/* Floating Radial Navigation Wheel */}
       <RadialNavWheel variant="floating" />
     </div>
