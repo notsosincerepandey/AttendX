@@ -35,14 +35,19 @@ import {
   serverDeleteAnnouncement,
 } from "../src/lib/serverAnnouncements";
 import { UserAccount } from "../src/types";
+import { loadLocalEnv } from "./set_admin_password";
 
-const TEST_PROJECT_REF = "iczjocbishkvkkkfvalz";
-const TEST_PROJECT_URL = "https://iczjocbishkvkkkfvalz.supabase.co";
-const TEST_SERVICE_ROLE_KEY = "REDACTED_SUPABASE_SERVICE_ROLE_KEY";
+loadLocalEnv();
 
-const adminClient = createClient(TEST_PROJECT_URL, TEST_SERVICE_ROLE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+const TEST_PROJECT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://iczjocbishkvkkkfvalz.supabase.co";
+const TEST_PROJECT_REF = new URL(TEST_PROJECT_URL).hostname.split(".")[0];
+const TEST_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+const adminClient = TEST_SERVICE_ROLE_KEY
+  ? createClient(TEST_PROJECT_URL, TEST_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+  : (null as any);
 
 let totalTests = 0;
 let totalPassed = 0;
@@ -670,8 +675,13 @@ async function verifyProductionPreservation() {
   console.log(" Target: cmdvsqbiozqltzcphpaf (READ-ONLY SANITY PROBE)      ");
   console.log("============================================================");
 
-  const PROD_URL = "https://cmdvsqbiozqltzcphpaf.supabase.co";
-  const PROD_SERVICE_ROLE_KEY = "REDACTED_PROD_SUPABASE_SERVICE_ROLE_KEY";
+  const PROD_URL = process.env.PROD_SUPABASE_URL || "https://cmdvsqbiozqltzcphpaf.supabase.co";
+  const PROD_SERVICE_ROLE_KEY = process.env.PROD_SUPABASE_SERVICE_ROLE_KEY || "";
+
+  if (!PROD_SERVICE_ROLE_KEY) {
+    console.log("  [SKIP] PROD_SUPABASE_SERVICE_ROLE_KEY not configured; skipping probe.");
+    return;
+  }
 
   const prodClient = createClient(PROD_URL, PROD_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },

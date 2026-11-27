@@ -15,10 +15,18 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { loadLocalEnv } from "./set_admin_password";
 
-const TARGET_PROJECT_URL = "https://iczjocbishkvkkkfvalz.supabase.co";
-const TARGET_ANON_KEY = "REDACTED_SUPABASE_ANON_KEY";
-const TARGET_SERVICE_ROLE_KEY = "REDACTED_SUPABASE_SERVICE_ROLE_KEY";
+loadLocalEnv();
+
+const TARGET_PROJECT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://iczjocbishkvkkkfvalz.supabase.co";
+const TARGET_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const TARGET_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+if (!TARGET_SERVICE_ROLE_KEY) {
+  console.error("[Configuration Error] SUPABASE_SERVICE_ROLE_KEY must be configured in environment.");
+  process.exit(1);
+}
 
 const EXPECTED_BRANCH_COUNTS: Record<string, number> = {
   CSE: 292,

@@ -99,7 +99,9 @@ async function run() {
 
   // GROUP 1: VAPID Key RFC 8292 Compliance & Sanitization
   console.log("--- GROUP 1: VAPID Public Key RFC 8292 Compliance ---");
-  const configuredVapidKey = "REDACTED_VAPID_PUBLIC_KEY";
+  const configuredVapidKey =
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
+    "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U";
 
   // Test with wrapping quotes, whitespace, and newlines
   const dirtyVapidKey = `  "${configuredVapidKey}"\n  `;

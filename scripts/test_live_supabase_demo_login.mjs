@@ -1,17 +1,24 @@
 import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 
-// Load .env.local manually
-const envContent = fs.readFileSync(".env.local", "utf-8");
-const env = {};
-envContent.split("\n").forEach((line) => {
-  const [k, ...v] = line.split("=");
-  if (k && v.length) env[k.trim()] = v.join("=").trim().replace(/^["']|["']$/g, "");
-});
+// Load .env.local if present, or fall back to process.env
+const env = { ...process.env };
+if (fs.existsSync(".env.local")) {
+  const envContent = fs.readFileSync(".env.local", "utf-8");
+  envContent.split("\n").forEach((line) => {
+    const [k, ...v] = line.split("=");
+    if (k && v.length) env[k.trim()] = v.join("=").trim().replace(/^["']|["']$/g, "");
+  });
+}
 
 const url = env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
 const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!url || !serviceKey) {
+  console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment.");
+  process.exit(1);
+}
 
 console.log("Supabase URL:", url ? url.substring(0, 30) + "..." : "missing");
 console.log("Anon key present:", Boolean(anonKey));

@@ -59,11 +59,11 @@ function findTimetableForStudent(params: { branchCode?: string; section?: string
 }
 
 async function main() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://iczjocbishkvkkkfvalz.supabase.co";
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseKey) {
-    console.error("Missing SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment");
     process.exit(1);
   }
 

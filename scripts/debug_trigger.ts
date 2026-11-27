@@ -1,8 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import { loadLocalEnv } from "./set_admin_password";
 
-const TEST_PROJECT_URL = "https://iczjocbishkvkkkfvalz.supabase.co";
-const TEST_SERVICE_ROLE_KEY = "REDACTED_SUPABASE_SERVICE_ROLE_KEY";
+loadLocalEnv();
+
+const TEST_PROJECT_URL: string = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const TEST_SERVICE_ROLE_KEY: string = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+if (!TEST_PROJECT_URL || !TEST_SERVICE_ROLE_KEY) {
+  console.error("[Configuration Error] NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment variables.");
+  process.exit(1);
+}
+
 const adminClient = createClient(TEST_PROJECT_URL, TEST_SERVICE_ROLE_KEY);
 
 async function debugTrigger() {

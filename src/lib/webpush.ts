@@ -7,11 +7,8 @@ function cleanKey(val?: string): string {
   return val.trim().replace(/^["']|["']$/g, "").replace(/\s+/g, "");
 }
 
-const RAW_VAPID_PUBLIC_KEY =
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
-  "REDACTED_VAPID_PUBLIC_KEY";
-const RAW_VAPID_PRIVATE_KEY =
-  process.env.VAPID_PRIVATE_KEY || "REDACTED_VAPID_PRIVATE_KEY";
+const RAW_VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
+const RAW_VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
 const RAW_VAPID_SUBJECT =
   process.env.VAPID_SUBJECT || "mailto:admin@mmmut.ac.in";
 
@@ -19,16 +16,27 @@ const VAPID_PUBLIC_KEY = cleanKey(RAW_VAPID_PUBLIC_KEY);
 const VAPID_PRIVATE_KEY = cleanKey(RAW_VAPID_PRIVATE_KEY);
 const VAPID_SUBJECT = cleanKey(RAW_VAPID_SUBJECT) || "mailto:admin@mmmut.ac.in";
 
-// Initialize VAPID details on server
+let isVapidConfigured = false;
+
+// Initialize VAPID details on server only when credentials are provided
 try {
   if (wp && typeof wp.setVapidDetails === "function") {
-    wp.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+    if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+      wp.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+      isVapidConfigured = true;
+    } else {
+      if (process.env.NODE_ENV === "production") {
+        console.warn(
+          "[Security Notice] Web Push VAPID keys not configured in environment (NEXT_PUBLIC_VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY)."
+        );
+      }
+    }
   }
-} catch (err) {
-  console.error("Error configuring web-push VAPID details:", err);
+} catch (err: any) {
+  console.error("Error configuring web-push VAPID details:", err?.message || err);
 }
 
-export { wp as webpush, VAPID_PUBLIC_KEY };
+export { wp as webpush, VAPID_PUBLIC_KEY, isVapidConfigured };
 
 export interface PushNotificationPayload {
   title: string;
@@ -56,6 +64,12 @@ export async function sendWebPush(
   subscription: webpushModule.PushSubscription,
   payload: PushNotificationPayload
 ): Promise<{ success: boolean; statusCode?: number; error?: string }> {
+  if (!isVapidConfigured) {
+    return {
+      success: false,
+      error: "VAPID credentials not configured in environment variables.",
+    };
+  }
   try {
     const stringified = JSON.stringify(payload);
     const result = await wp.sendNotification(subscription, stringified);

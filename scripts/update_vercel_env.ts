@@ -13,14 +13,17 @@
  */
 
 import https from "https";
+import { loadLocalEnv } from "./set_admin_password";
+
+loadLocalEnv();
 
 export const PROJECT_NAME = "attend-x";
 export const TARGET_SUPABASE_REF = "iczjocbishkvkkkfvalz";
 export const OLD_SUPABASE_REF = "cmdvsqbiozqltzcphpaf";
 
-export const TARGET_SUPABASE_URL = "https://iczjocbishkvkkkfvalz.supabase.co";
-export const TARGET_ANON_KEY = "REDACTED_SUPABASE_ANON_KEY";
-export const TARGET_SERVICE_ROLE_KEY = "REDACTED_SUPABASE_SERVICE_ROLE_KEY";
+export const TARGET_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://iczjocbishkvkkkfvalz.supabase.co";
+export const TARGET_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+export const TARGET_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 export interface VercelEnvVar {
   id: string;

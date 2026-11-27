@@ -59,8 +59,8 @@ async function runE2E() {
       subscription: {
         endpoint: dummyEndpoint,
         keys: {
-          p256dh: "REDACTED_VAPID_PUBLIC_KEY",
-          auth: "REDACTED_VAPID_AUTH_SUBKEY",
+          p256dh: "mock_test_p256dh_sample_key_only_for_unit_testing_1234567890",
+          auth: "mock_auth_secret_123",
         },
       },
       userAgent: "AttendX-E2E-Verifier/1.0",
@@ -212,7 +212,7 @@ async function runE2E() {
 
   // 6. Cron Sweep Endpoints & Security Authorization
   console.log("\n--- 6. Testing Server Cron Sweep Endpoints & Security ---");
-  const cronSecret = process.env.CRON_SECRET || "REDACTED_CRON_SECRET";
+  const cronSecret = process.env.CRON_SECRET || "attendx_dev_test_cron_secret";
 
   // 6a. Reject unauthorized cron request
   const unauthRes = await fetch(`${BASE_URL}/api/cron/check-classes`);

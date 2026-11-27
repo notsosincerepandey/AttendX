@@ -13,11 +13,21 @@ export interface ServerUserRecord extends UserAccount {
 }
 
 function getSigningSecret(): string {
-  return (
+  const secret =
     process.env.CRON_SECRET ||
-    process.env.VAPID_PRIVATE_KEY ||
-    "attendx-session-signing-fallback-key-2026"
-  );
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.VAPID_PRIVATE_KEY;
+
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "[Security Error] Session signing secret is not configured in environment (CRON_SECRET or SUPABASE_SERVICE_ROLE_KEY)."
+      );
+    }
+    return "attendx-dev-local-session-signing-secret";
+  }
+
+  return secret;
 }
 
 function getDevSeedPassword(role: UserRole): string | undefined {

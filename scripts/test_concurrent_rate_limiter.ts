@@ -14,10 +14,18 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { loadLocalEnv } from "./set_admin_password";
 
-const TEST_PROJECT_REF = "iczjocbishkvkkkfvalz";
-const TEST_PROJECT_URL = "https://iczjocbishkvkkkfvalz.supabase.co";
-const TEST_SERVICE_ROLE_KEY = "REDACTED_SUPABASE_SERVICE_ROLE_KEY";
+loadLocalEnv();
+
+const TEST_PROJECT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://iczjocbishkvkkkfvalz.supabase.co";
+const TEST_PROJECT_REF = new URL(TEST_PROJECT_URL).hostname.split(".")[0];
+const TEST_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+if (!TEST_SERVICE_ROLE_KEY) {
+  console.error("[Configuration Error] SUPABASE_SERVICE_ROLE_KEY must be set in environment variables.");
+  process.exit(1);
+}
 
 let passed = 0;
 let failed = 0;

@@ -7,9 +7,7 @@ export function sanitizeVapidKey(key?: string): string {
   return key.trim().replace(/^["']|["']$/g, "").replace(/\s+/g, "");
 }
 
-const RAW_VAPID_PUBLIC_KEY =
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
-  "REDACTED_VAPID_PUBLIC_KEY";
+const RAW_VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
 
 export const VAPID_PUBLIC_KEY = sanitizeVapidKey(RAW_VAPID_PUBLIC_KEY);
 

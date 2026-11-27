@@ -2,11 +2,21 @@ import crypto from "crypto";
 
 // Secret used for signing notification action tokens
 function getSigningSecret(): string {
-  return (
+  const secret =
     process.env.CRON_SECRET ||
     process.env.VAPID_PRIVATE_KEY ||
-    "attendx-secure-action-signing-fallback-key-2026"
-  );
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "[Security Error] Notification action signing secret missing in environment (CRON_SECRET or SUPABASE_SERVICE_ROLE_KEY)."
+      );
+    }
+    return "attendx-dev-local-action-signing-secret";
+  }
+
+  return secret;
 }
 
 export interface ActionTokenPayload {

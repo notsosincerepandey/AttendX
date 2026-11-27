@@ -153,8 +153,8 @@ async function runAuthRemediationTests() {
     {
       endpoint: testSubEndpoint,
       keys: {
-        p256dh: "REDACTED_VAPID_PUBLIC_KEY",
-        auth: "REDACTED_VAPID_AUTH_SUBKEY",
+        p256dh: "mock_test_p256dh_sample_key_only_for_unit_testing_1234567890",
+        auth: "mock_auth_secret_123",
       },
     },
     "AttendX-Test-Agent/1.0"

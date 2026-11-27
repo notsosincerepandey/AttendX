@@ -21,12 +21,17 @@ import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import { createClient } from "@supabase/supabase-js";
+import { loadLocalEnv } from "./set_admin_password";
 
-export const TARGET_PROJECT_REF = "iczjocbishkvkkkfvalz";
+loadLocalEnv();
+
+export const TARGET_PROJECT_REF = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname.split(".")[0]
+  : "iczjocbishkvkkkfvalz";
 export const FORBIDDEN_PROJECT_REF = "cmdvsqbiozqltzcphpaf";
 
-export const TARGET_PROJECT_URL = "https://iczjocbishkvkkkfvalz.supabase.co";
-export const TARGET_SERVICE_ROLE_KEY = "REDACTED_SUPABASE_SERVICE_ROLE_KEY";
+export const TARGET_PROJECT_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://iczjocbishkvkkkfvalz.supabase.co";
+export const TARGET_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 export const DEFAULT_STUDENT_PASSWORD = "student@2026";
 export const DEFAULT_ACADEMIC_SESSION = "2026-27";
@@ -194,6 +199,10 @@ export async function executeStudentImport(): Promise<ImportStats> {
   }
   if (TARGET_PROJECT_URL.includes(FORBIDDEN_PROJECT_REF)) {
     throw new Error(`[FATAL] TARGET VIOLATION: URL points to forbidden project ${FORBIDDEN_PROJECT_REF}`);
+  }
+
+  if (!TARGET_SERVICE_ROLE_KEY) {
+    throw new Error("[FATAL] SUPABASE_SERVICE_ROLE_KEY environment variable is required.");
   }
 
   const supabase = createClient(TARGET_PROJECT_URL, TARGET_SERVICE_ROLE_KEY, {
