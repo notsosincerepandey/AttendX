@@ -6,7 +6,7 @@ AttendX is a student-oriented attendance tracking and analytics web application 
 Shubh Pandey | 2026071160  
 Saksham Tiwari | 2026071150  
 Himanshu Singh | 2026071130  
-Yuvraj Singh | 20260701169  
+Yuvraj Singh | 2026071169  
 
 ## Features
 * Student attendance tracking and subject-wise analytics
