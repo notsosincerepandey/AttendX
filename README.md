@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AttendX
 
-## Getting Started
+AttendX is a student-oriented attendance tracking and analytics web application designed to help students monitor their attendance, manage timetables, track subject-wise attendance, and estimate their eligibility against attendance requirements. It provides a centralized platform for students to stay informed about their academic attendance.
 
-First, run the development server:
+# Project Members
+Shubh Pandey | 2026071160  
+Saksham Tiwari | 2026071150  
+Himanshu Singh | 2026071130  
+Yuvraj Singh | 20260701169  
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Features
+* Student attendance tracking and subject-wise analytics
+* Attendance percentage calculation and 75% eligibility calculator
+* Personal timetable management with recurring and date-specific classes
+* Class Cancellation Reports and cancellation verification
+* Attendance history with CSV and Excel export
+* Class polls, announcements, and notifications
+* Separate tracking of theory classes and practical/lab sessions
+* Student, CR, and administrator access with role-based permissions
+* Demo account for exploring the application
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Tech Stack
+* **Frontend:** Next.js, React, TypeScript, Tailwind CSS
+* **Backend:** Next.js API Routes and server-side logic
+* **Database:** Supabase PostgreSQL
+* **Authentication:** Supabase Auth
+* **Notifications:** Web Push Notifications
+* **Deployment:** Vercel
+* **Version Control:** Git and GitHub
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Prerequisites
+* Node.js (LTS version recommended)
+* npm
+* Git
+* A Supabase project for local development
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Installation & Setup
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/notsosincerepandey/AttendX.git
+   cd AttendX
+   ```
 
-## Learn More
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+3. **Configure the environment:**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   Create a `.env.local` file in the root directory and configure the required Supabase and application environment variables.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. **Run the application:**
+   ```bash
+   npm run dev
+   ```
 
-## Deploy on Vercel
+5. **Open the application:**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   Visit `http://localhost:3000` in your browser.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Usage
+Visit the deployed application:
+
+**Website:** https://attend-x-green.vercel.app
+
+Students can log in to view their attendance dashboard, subject-wise attendance, timetable, attendance history, calculate attendance requirements, and access other available features.
+
+### Demo Account
+Use the following demo credentials to explore the application:
+
+* **Roll Number:** `DEMO2026`
+* **Email:** `demo.student@attendx.app`
+* **Password:** `Demo@AttendX2026`
+
+**Login:** https://attend-x-green.vercel.app/login
+
+The demo account is intended for demonstration purposes only.
