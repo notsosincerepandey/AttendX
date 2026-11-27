@@ -5,6 +5,7 @@ import {
   Search,
   RefreshCw,
   Upload,
+  UserPlus,
   UserCheck,
   UserMinus,
   KeyRound,
@@ -24,6 +25,7 @@ import { getAllBranches, getSectionsForBranch } from "@/data/extractedTimetables
 import { VALID_ACADEMIC_YEARS } from "@/lib/studentImportTypes";
 import BulkStudentImportModal from "./BulkStudentImportModal";
 import StudentRemovalModal from "./StudentRemovalModal";
+import ManualStudentCreateModal from "./ManualStudentCreateModal";
 
 interface AdminStudentManagementViewProps {
   students: StudentDirectoryItem[];
@@ -86,6 +88,7 @@ export default function AdminStudentManagementView({
 }: AdminStudentManagementViewProps) {
   // Modal states
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [removalModalStudent, setRemovalModalStudent] = useState<StudentDirectoryItem | null>(null);
   const [bulkRemovalStudents, setBulkRemovalStudents] = useState<StudentDirectoryItem[]>([]);
   const [isRemovalModalOpen, setIsRemovalModalOpen] = useState(false);
@@ -144,8 +147,15 @@ export default function AdminStudentManagementView({
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
+              onClick={() => setIsManualModalOpen(true)}
+              className="glossy-btn glossy-btn-emerald shine-sweep px-4 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md flex items-center gap-1.5 cursor-pointer"
+            >
+              <UserPlus className="w-4 h-4" /> Add Student Manually
+            </button>
+
+            <button
               onClick={() => setIsImportModalOpen(true)}
-              className="px-4 py-2.5 rounded-2xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-600/25 flex items-center gap-1.5 transition-all"
+              className="glossy-btn glossy-btn-primary px-4 py-2.5 rounded-2xl text-xs font-bold text-white shadow-md flex items-center gap-1.5 cursor-pointer"
             >
               <Upload className="w-4 h-4" /> Bulk Import Students
             </button>
@@ -533,6 +543,15 @@ export default function AdminStudentManagementView({
           </div>
         </div>
       </div>
+
+      {/* Manual Student Creation Modal */}
+      <ManualStudentCreateModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        onSuccess={() => {
+          onRefresh();
+        }}
+      />
 
       {/* Bulk Student Import Modal */}
       <BulkStudentImportModal

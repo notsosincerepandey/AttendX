@@ -7,7 +7,7 @@ import {
   findTimetableForStudent,
 } from "@/data/extractedTimetables";
 
-interface ServerUserRecord extends UserAccount {
+export interface ServerUserRecord extends UserAccount {
   passwordHash?: string;
   rawPassword?: string;
 }
@@ -28,12 +28,42 @@ function getDevSeedPassword(role: UserRole): string | undefined {
   return process.env.STUDENT_DEV_PASSWORD || process.env.DEV_SEED_PASSWORD;
 }
 
-const SEED_ACCOUNTS: ServerUserRecord[] = [];
+export const DEMO_STUDENT_ID = "demo-student-attendx-2026";
+export const DEMO_STUDENT_RECORD: ServerUserRecord = {
+  id: DEMO_STUDENT_ID,
+  fullName: "Aditya Verma (Demo Student)",
+  email: "demo.student@attendx.app",
+  rollNumber: "DEMO2026",
+  enrollmentNumber: "DEMO2026001",
+  role: "student",
+  degree: "B.Tech",
+  branch: "Information Technology",
+  branchCode: "IT",
+  section: "SEC-B",
+  batch: "P1",
+  semester: "Semester I",
+  academicYear: "1st Year",
+  academicSession: "2026-27",
+  attendanceThreshold: 75,
+  activeTimetableId: "tt-it-sec-b",
+  password: "Demo@AttendX2026",
+  rawPassword: "Demo@AttendX2026",
+  requiresPasswordChange: false,
+  passwordChangeConsumed: true,
+  isActive: true,
+  status: "ACTIVE",
+  isDemo: true,
+};
+
+const SEED_ACCOUNTS: ServerUserRecord[] = [DEMO_STUDENT_RECORD];
 
 const serverUsersStore: Map<string, ServerUserRecord> = new Map();
 
 SEED_ACCOUNTS.forEach((acc) => {
   serverUsersStore.set(acc.email.toLowerCase(), acc);
+  if (acc.rollNumber) {
+    serverUsersStore.set(acc.rollNumber.toLowerCase(), acc);
+  }
 });
 
 export function sanitizeUser(user: ServerUserRecord): UserAccount {
@@ -46,6 +76,9 @@ export function sanitizeUser(user: ServerUserRecord): UserAccount {
  */
 export function seedUserForTesting(user: ServerUserRecord): void {
   serverUsersStore.set(user.email.toLowerCase(), user);
+  if (user.rollNumber) {
+    serverUsersStore.set(user.rollNumber.toLowerCase(), user);
+  }
 }
 
 /**
@@ -220,11 +253,11 @@ export async function authenticateCredentials(
           .maybeSingle();
         matchedProfile = data;
       } else {
-        // Secure query matching either roll_number or enrollment_number for students
+        // Secure query matching roll_number, enrollment_number, or email for students
         const { data } = await adminClient
           .from("student_profiles")
           .select("*, branches:branch_id (code, name, degree), sections:section_id (section_name, default_room)")
-          .or(`roll_number.eq.${trimmed},enrollment_number.ilike.${trimmed}`)
+          .or(`roll_number.eq.${trimmed},enrollment_number.ilike.${trimmed},email.ilike.${trimmed}`)
           .maybeSingle();
         matchedProfile = data;
       }
@@ -414,10 +447,11 @@ export async function authenticateCredentials(
     }
   }
 
-  // 3. Server Vault check (Only accessible in development mode)
+  // 3. Server Vault check (Accessible in offline / development mode)
   const matched =
     serverUsersStore.get(targetEmail) ||
-    (Array.from(serverUsersStore.values()).find((u) => u.rollNumber === trimmed || u.enrollmentNumber === trimmed));
+    serverUsersStore.get(trimmed.toLowerCase()) ||
+    (Array.from(serverUsersStore.values()).find((u) => u.rollNumber === trimmed || u.enrollmentNumber === trimmed || (u.email && u.email.toLowerCase() === trimmed.toLowerCase())));
 
   if (matched) {
     const devPass = getDevSeedPassword(matched.role);

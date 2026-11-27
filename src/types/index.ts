@@ -31,6 +31,7 @@ export interface UserAccount {
   passwordChangeConsumed?: boolean;
   status?: string; // "ACTIVE" | "DEACTIVATED" | "SUSPENDED"
   isActive?: boolean;
+  isDemo?: boolean;
 }
 
 export interface StudentDirectoryItem {
@@ -55,6 +56,25 @@ export interface StudentDirectoryItem {
   isActive: boolean;
   status?: string;
   createdAt?: string;
+  isDemo?: boolean;
+}
+
+export interface CreateSingleStudentInput {
+  fullName: string;
+  rollNumber: string;
+  enrollmentNumber?: string;
+  fatherName?: string;
+  email?: string;
+  branchCode: string;
+  academicYear?: string;
+  semester?: string;
+  academicSession?: string;
+  section: string;
+  batch?: string;
+  password?: string;
+  status?: "ACTIVE" | "INACTIVE";
+  requiresPasswordChange?: boolean;
+  isDemo?: boolean;
 }
 
 export interface PublishedTimetableVersion {

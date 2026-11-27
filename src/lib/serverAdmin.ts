@@ -10,8 +10,23 @@
  * can invoke these operations. Never trusts client-supplied roles or scopes.
  */
 
-import { UserAccount, StudentDirectoryItem, PublishedTimetableVersion, UniversityTimetable } from "@/types";
-import { BRANCH_SECTIONS_MAP, BRANCH_NAMES_MAP, getSectionsForBranch, normalizeSection } from "@/data/extractedTimetables";
+import crypto from "crypto";
+import {
+  UserAccount,
+  StudentDirectoryItem,
+  PublishedTimetableVersion,
+  UniversityTimetable,
+  CreateSingleStudentInput,
+} from "@/types";
+import {
+  getAllBranches,
+  BRANCH_SECTIONS_MAP,
+  BRANCH_NAMES_MAP,
+  getSectionsForBranch,
+  normalizeSection,
+  getBranchFullName,
+} from "@/data/extractedTimetables";
+import { seedUserForTesting } from "@/lib/serverAuth";
 
 // In-memory test store for offline development and fast test runner execution
 export class ServerAdminStore {
@@ -28,6 +43,26 @@ export class ServerAdminStore {
 
     // Default seed students for isolated test runner
     const defaultStudents: StudentDirectoryItem[] = [
+      {
+        id: "demo-student-attendx-2026",
+        userId: "demo-student-attendx-2026",
+        fullName: "Aditya Verma (Demo Student)",
+        email: "demo.student@attendx.app",
+        rollNumber: "DEMO2026",
+        enrollmentNumber: "DEMO2026001",
+        branchCode: "IT",
+        branchName: "Information Technology",
+        section: "SEC-B",
+        batch: "P1",
+        academicSession: "2026-27",
+        academicYear: "1st Year",
+        semester: "Semester I",
+        role: "student",
+        isActive: true,
+        status: "ACTIVE",
+        createdAt: "2026-11-27T00:00:00.000Z",
+        isDemo: true,
+      },
       {
         id: "c70936b3-ffe8-4baa-908d-f92fbd62ca9a",
         userId: "c70936b3-ffe8-4baa-908d-f92fbd62ca9a",
@@ -1129,6 +1164,378 @@ export async function serverBulkImportStudents(
     failedCount: errors.length,
     errors,
   };
+}
+
+/**
+ * Server Operation: Create a single student account manually with atomic provisioning & rollback
+ */
+export async function serverCreateSingleStudent(
+  adminUser: UserAccount,
+  input: CreateSingleStudentInput
+): Promise<{ success: boolean; student?: StudentDirectoryItem; error?: string }> {
+  if (adminUser.role !== "admin") {
+    return { success: false, error: "Access Denied: Administrator privileges required." };
+  }
+
+  // 1. Sanitize & Validate fields
+  const fullName = (input.fullName || "").trim();
+  if (!fullName || fullName.length < 2) {
+    return { success: false, error: "Student full name is required (at least 2 characters)." };
+  }
+
+  const rollNumber = (input.rollNumber || "").trim().toUpperCase();
+  if (!rollNumber || rollNumber.length < 2) {
+    return { success: false, error: "Valid roll number is required." };
+  }
+  if (!/^[A-Z0-9_-]+$/i.test(rollNumber)) {
+    return { success: false, error: "Roll number must contain alphanumeric characters or hyphens only." };
+  }
+
+  const enrollmentNumber = input.enrollmentNumber?.trim() ? input.enrollmentNumber.trim().toUpperCase() : undefined;
+  const fatherName = input.fatherName?.trim() || undefined;
+
+  const bCode = (input.branchCode || "").trim().toUpperCase();
+  if (!bCode) {
+    return { success: false, error: "Branch selection is required." };
+  }
+
+  const validBranches = getAllBranches().map((b) => b.code.toUpperCase());
+  if (!validBranches.includes(bCode)) {
+    return { success: false, error: `Invalid branch code "${bCode}". Please select a valid branch.` };
+  }
+
+  const normalizedSec = normalizeSection(input.section || "");
+  if (!normalizedSec) {
+    return { success: false, error: "Section selection is required." };
+  }
+
+  const batch = (input.batch || "P1").trim().toUpperCase();
+  const academicYear = input.academicYear || "1st Year";
+  const academicSession = input.academicSession || "2026-27";
+  const semester = input.semester || (academicYear === "2nd Year" ? "Semester III" : "Semester I");
+
+  let email = (input.email || "").trim().toLowerCase();
+  if (email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return { success: false, error: "Please enter a valid email address (e.g. student@example.com)." };
+    }
+  } else {
+    email = `student.${rollNumber.toLowerCase()}@attendx.mmmut.ac.in`;
+  }
+
+  const rawPassword = input.password?.trim();
+  if (rawPassword && rawPassword.length < 6) {
+    return { success: false, error: "Password must be at least 6 characters long." };
+  }
+  const password = rawPassword || process.env.DEFAULT_STUDENT_PASSWORD || "AttendX@2026";
+
+  const status = input.status || "ACTIVE";
+  const isActive = status !== "INACTIVE";
+  const isDemo = Boolean(input.isDemo);
+
+  const requiresPasswordChange =
+    input.requiresPasswordChange !== undefined
+      ? input.requiresPasswordChange
+      : isDemo
+      ? false
+      : rawPassword
+      ? false
+      : true;
+
+  const supabase = await getSupabaseAdminClient();
+
+  // 2. Duplicate Validation
+  if (supabase) {
+    try {
+      // Check roll number uniqueness
+      const { data: dupRoll } = await supabase
+        .from("student_profiles")
+        .select("id, roll_number")
+        .eq("roll_number", rollNumber)
+        .maybeSingle();
+
+      if (dupRoll) {
+        return { success: false, error: `Roll Number "${rollNumber}" is already registered to an existing student.` };
+      }
+
+      // Check enrollment number uniqueness
+      if (enrollmentNumber) {
+        const { data: dupEnr } = await supabase
+          .from("student_profiles")
+          .select("id, enrollment_number")
+          .ilike("enrollment_number", enrollmentNumber)
+          .maybeSingle();
+
+        if (dupEnr) {
+          return { success: false, error: `Enrollment Number "${enrollmentNumber}" is already registered to an existing student.` };
+        }
+      }
+
+      // Check email uniqueness
+      const { data: dupEmail } = await supabase
+        .from("student_profiles")
+        .select("id, email")
+        .ilike("email", email)
+        .maybeSingle();
+
+      if (dupEmail) {
+        return { success: false, error: `Email address "${email}" is already registered to an existing student.` };
+      }
+    } catch (checkErr: any) {
+      console.warn("Database duplicate check warning:", checkErr.message);
+    }
+  }
+
+  // Also check duplicate in serverAdminStore
+  const inMemoryDupRoll = serverAdminStore.getAllStudents().find(
+    (s) => s.rollNumber && s.rollNumber.toUpperCase() === rollNumber
+  );
+  if (inMemoryDupRoll) {
+    return { success: false, error: `Roll Number "${rollNumber}" is already registered to an existing student.` };
+  }
+
+  if (enrollmentNumber) {
+    const inMemoryDupEnr = serverAdminStore.getAllStudents().find(
+      (s) => s.enrollmentNumber && s.enrollmentNumber.toUpperCase() === enrollmentNumber
+    );
+    if (inMemoryDupEnr) {
+      return { success: false, error: `Enrollment Number "${enrollmentNumber}" is already registered to an existing student.` };
+    }
+  }
+
+  const inMemoryDupEmail = serverAdminStore.getAllStudents().find(
+    (s) => s.email && s.email.toLowerCase() === email
+  );
+  if (inMemoryDupEmail) {
+    return { success: false, error: `Email address "${email}" is already registered to an existing student.` };
+  }
+
+  // 3. Provisioning
+  let studentId: string = isDemo ? "demo-student-attendx-2026" : `student-${crypto.randomUUID()}`;
+
+  if (supabase) {
+    let createdAuthId: string | null = null;
+    try {
+      // Resolve branch_id
+      const { data: dbBranches } = await supabase.from("branches").select("id, code");
+      const branchId = (dbBranches || []).find((b) => b.code.toUpperCase() === bCode)?.id;
+      if (!branchId) {
+        return { success: false, error: `Branch code "${bCode}" does not exist in university branches table.` };
+      }
+
+      // Resolve section_id
+      const { data: dbSections } = await supabase.from("sections").select("id, branch_id, section_name");
+      let sectionId = (dbSections || []).find(
+        (s) => s.branch_id === branchId && s.section_name.toUpperCase() === normalizedSec.toUpperCase()
+      )?.id;
+
+      if (!sectionId) {
+        const { data: newSec } = await supabase
+          .from("sections")
+          .insert({ branch_id: branchId, section_name: normalizedSec })
+          .select("id")
+          .single();
+        sectionId = newSec?.id;
+      }
+
+      if (!sectionId) {
+        const fallbackSec = (dbSections || []).find((s) => s.branch_id === branchId);
+        sectionId = fallbackSec?.id;
+      }
+
+      if (!sectionId) {
+        return { success: false, error: `Section "${normalizedSec}" could not be resolved for branch "${bCode}".` };
+      }
+
+      // 3a. Create Supabase Auth account
+      const { data: authResult, error: authErr } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        app_metadata: {
+          role: "student",
+          roll_number: rollNumber,
+          enrollment_number: enrollmentNumber || null,
+          father_name: fatherName || null,
+          branch_code: bCode,
+          section: normalizedSec,
+          batch,
+          academic_year: academicYear,
+          academic_session: academicSession,
+          password_change_consumed: !requiresPasswordChange,
+          requires_password_change: requiresPasswordChange,
+          account_status: status,
+          is_demo: isDemo,
+        },
+        user_metadata: {
+          full_name: fullName,
+          roll_number: rollNumber,
+          is_demo: isDemo,
+        },
+      });
+
+      if (authErr || !authResult?.user) {
+        return { success: false, error: `Auth account creation failed: ${authErr?.message}` };
+      }
+
+      createdAuthId = authResult.user.id;
+      studentId = createdAuthId;
+
+      // 3b. Insert into student_profiles
+      const { error: profileErr } = await supabase.from("student_profiles").insert({
+        id: createdAuthId,
+        user_id: createdAuthId,
+        full_name: fullName,
+        roll_number: rollNumber,
+        enrollment_number: enrollmentNumber || null,
+        father_name: fatherName || null,
+        email,
+        role: "student",
+        branch_id: branchId,
+        section_id: sectionId,
+        branch_code: bCode,
+        section: normalizedSec,
+        batch,
+        academic_year: academicYear,
+        semester,
+        academic_session: academicSession,
+        attendance_threshold: 75.0,
+        is_active: isActive,
+        status,
+        password_change_consumed: !requiresPasswordChange,
+        requires_password_change: requiresPasswordChange,
+      });
+
+      if (profileErr) {
+        // Atomic rollback
+        await supabase.auth.admin.deleteUser(createdAuthId);
+        return { success: false, error: `Student profile creation failed: ${profileErr.message}` };
+      }
+    } catch (dbErr: any) {
+      if (createdAuthId) {
+        try {
+          await supabase.auth.admin.deleteUser(createdAuthId);
+        } catch {}
+      }
+      return { success: false, error: dbErr.message || "Database operation failed." };
+    }
+  }
+
+  // 4. Update in-memory / local stores
+  const branchName = getBranchFullName(bCode) || "Engineering";
+  const newStudentItem: StudentDirectoryItem = {
+    id: studentId,
+    userId: studentId,
+    fullName,
+    email,
+    rollNumber,
+    enrollmentNumber,
+    fatherName,
+    branchCode: bCode,
+    branchName,
+    section: normalizedSec,
+    batch,
+    academicSession,
+    academicYear,
+    semester,
+    role: "student",
+    isActive,
+    status,
+    createdAt: new Date().toISOString(),
+    isDemo,
+  };
+
+  serverAdminStore.setStudent(newStudentItem);
+
+  seedUserForTesting({
+    id: studentId,
+    fullName,
+    email,
+    rollNumber,
+    enrollmentNumber,
+    fatherName,
+    role: "student",
+    degree: "B.Tech",
+    branch: branchName,
+    branchCode: bCode,
+    section: normalizedSec,
+    batch,
+    semester,
+    academicYear,
+    academicSession,
+    attendanceThreshold: 75,
+    activeTimetableId: `tt-${bCode.toLowerCase()}-${normalizedSec.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+    password,
+    rawPassword: password,
+    isActive,
+    status,
+    requiresPasswordChange,
+    passwordChangeConsumed: !requiresPasswordChange,
+    isDemo,
+  });
+
+  return {
+    success: true,
+    student: newStudentItem,
+  };
+}
+
+export const DEMO_STUDENT_CONFIG: CreateSingleStudentInput = {
+  fullName: "Aditya Verma (Demo Student)",
+  rollNumber: "DEMO2026",
+  enrollmentNumber: "DEMO2026001",
+  email: "demo.student@attendx.app",
+  password: "Demo@AttendX2026",
+  branchCode: "IT",
+  section: "SEC-B",
+  batch: "P1",
+  academicYear: "1st Year",
+  semester: "Semester I",
+  academicSession: "2026-27",
+  status: "ACTIVE",
+  requiresPasswordChange: false,
+  isDemo: true,
+};
+
+/**
+ * Ensures the dedicated public demo student account exists in the database and in-memory stores.
+ */
+export async function ensureDemoStudentAccountExists(): Promise<{
+  success: boolean;
+  student?: StudentDirectoryItem;
+  created: boolean;
+  error?: string;
+}> {
+  const adminUser: UserAccount = {
+    id: "system-admin-init",
+    fullName: "AttendX System",
+    email: "admin@attendx.ac.in",
+    role: "admin",
+    degree: "B.Tech",
+    branch: "Administrator",
+    branchCode: "ADMIN",
+    section: "",
+    batch: "ALL",
+    semester: "",
+    academicSession: "2026-27",
+    attendanceThreshold: 75,
+    activeTimetableId: "",
+  };
+
+  const existing =
+    serverAdminStore.getStudentById("demo-student-attendx-2026") ||
+    serverAdminStore.getAllStudents().find((s) => s.rollNumber === "DEMO2026" || s.email === "demo.student@attendx.app");
+
+  if (existing) {
+    return { success: true, student: existing, created: false };
+  }
+
+  const result = await serverCreateSingleStudent(adminUser, DEMO_STUDENT_CONFIG);
+  if (result.success && result.student) {
+    return { success: true, student: result.student, created: true };
+  }
+  return { success: false, error: result.error, created: false };
 }
 
 /**
