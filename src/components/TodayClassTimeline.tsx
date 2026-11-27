@@ -239,7 +239,7 @@ export default function TodayClassTimeline({
                       ? "border-zinc-500 text-white bg-zinc-700/80"
                       : "text-zinc-500 hover:text-zinc-300"
                   }`}
-                  title="Mark cancelled by faculty or mass bunk"
+                  title="Mark period as cancelled"
                   aria-label={`Mark period ${slot.period} cancelled`}
                 >
                   Cancelled

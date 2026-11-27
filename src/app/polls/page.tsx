@@ -284,7 +284,7 @@ export default function ClassPollsPage() {
             Class Polls & Voting
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            Vote on mass bunks, lab rescheduling, and class matters. Real-time anonymous voting powered by your Class Representatives.
+            Vote on class cancellations, lab rescheduling, and class matters. Real-time anonymous voting powered by your Class Representatives.
           </p>
         </div>
 
@@ -331,7 +331,7 @@ export default function ClassPollsPage() {
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {[
           { id: "ALL", label: "All Polls" },
-          { id: "MASS_BUNK", label: "Mass Bunks" },
+          { id: "MASS_BUNK", label: "Class Cancellations" },
           { id: "RESCHEDULE", label: "Rescheduling" },
           { id: "EXTRA_CLASS", label: "Extra Classes" },
           { id: "GENERAL", label: "General" },
@@ -385,7 +385,9 @@ export default function ClassPollsPage() {
                             : "bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
                         }`}
                       >
-                        {poll.category.replace("_", " ")}
+                        {poll.category === "MASS_BUNK"
+                          ? "CLASS CANCELLATION"
+                          : poll.category.replace("_", " ")}
                       </span>
 
                       <span className="text-[10px] font-bold text-zinc-400 font-mono">
@@ -591,7 +593,7 @@ export default function ClassPollsPage() {
                 <label className="font-semibold block mb-1 text-zinc-300">Poll Question / Title</label>
                 <input
                   type="text"
-                  placeholder="e.g. Mass bunk Friday Period 6 & 7 for cultural fest?"
+                  placeholder="e.g. Class cancellation Friday Period 6 & 7 for cultural fest?"
                   value={pollTitle}
                   onChange={(e) => setPollTitle(e.target.value)}
                   className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-lg font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
@@ -605,7 +607,7 @@ export default function ClassPollsPage() {
                   onChange={(e) => setPollCategory(e.target.value as any)}
                   className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500 cursor-pointer"
                 >
-                  <option value="MASS_BUNK">Mass Bunk Consensus</option>
+                  <option value="MASS_BUNK">Class Cancellation Consensus</option>
                   <option value="RESCHEDULE">Class / Lab Rescheduling</option>
                   <option value="EXTRA_CLASS">Extra Class Agreement</option>
                   <option value="GENERAL">General Class Decision</option>

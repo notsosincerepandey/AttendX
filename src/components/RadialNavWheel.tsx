@@ -76,11 +76,11 @@ const NAV_NODES: RadialNavNode[] = [
   },
   {
     id: "cancellations",
-    label: "Mass Bunk",
+    label: "Cancellations",
     href: "/cancellations",
     icon: AlertTriangle,
     accentColor: "#f59e0b", // amber
-    tagline: "Leave & cancelled periods",
+    tagline: "Reports & cancelled periods",
   },
   {
     id: "notifications",

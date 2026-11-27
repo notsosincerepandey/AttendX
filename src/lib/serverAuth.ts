@@ -262,6 +262,21 @@ export async function authenticateCredentials(
         matchedProfile = data;
       }
 
+      if (!matchedProfile && (trimmed.toUpperCase() === "DEMO2026" || trimmed.toLowerCase() === "demo.student@attendx.app")) {
+        try {
+          const { ensureDemoStudentAccountExists } = await import("@/lib/serverAdmin");
+          await ensureDemoStudentAccountExists();
+          const { data: recheck } = await adminClient
+            .from("student_profiles")
+            .select("*, branches:branch_id (code, name, degree), sections:section_id (section_name, default_room)")
+            .or(`roll_number.eq.${trimmed},email.ilike.${trimmed}`)
+            .maybeSingle();
+          matchedProfile = recheck;
+        } catch (provErr) {
+          console.warn("Auto-provision demo error:", provErr);
+        }
+      }
+
       if (matchedProfile) {
         resolvedProfile = matchedProfile;
         resolvedRoll = matchedProfile.roll_number;
@@ -278,7 +293,11 @@ export async function authenticateCredentials(
   }
 
   if (!targetEmail) {
-    targetEmail = isPrimaryAdmin ? "admin@attendx.ac.in" : rollNumberToEmailAlias(trimmed);
+    if (trimmed.toUpperCase() === "DEMO2026" || trimmed.toLowerCase() === "demo.student@attendx.app") {
+      targetEmail = "demo.student@attendx.app";
+    } else {
+      targetEmail = isPrimaryAdmin ? "admin@attendx.ac.in" : rollNumberToEmailAlias(trimmed);
+    }
   }
 
   // 2. Supabase Auth authoritative sign in if cloud credentials exist

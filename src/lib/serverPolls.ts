@@ -17,13 +17,13 @@ import { isSupabaseJwt } from "@/lib/serverAuthGuard";
 export const SEED_CLASS_POLLS: ClassPoll[] = [
   {
     id: "poll-demo-01",
-    title: "Consensus on Mass Bunk for Friday P6 & P7?",
+    title: "Consensus on Class Cancellation for Friday P6 & P7?",
     description: "Proposed by Class Representative for cultural fest rehearsal preparation.",
     category: "MASS_BUNK",
     branchCode: "IT",
     section: "SEC-B",
     options: [
-      { id: "opt-1", text: "Yes, 100% Mass Bunk", votes: 28 },
+      { id: "opt-1", text: "Yes, 100% Agreed Cancellation", votes: 28 },
       { id: "opt-2", text: "No, Attend Classes", votes: 4 },
       { id: "opt-3", text: "Neutral / Depends on attendance", votes: 7 },
     ],

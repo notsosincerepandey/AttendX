@@ -64,7 +64,7 @@ export function generateSeedAttendance(
 
       let status: "PRESENT" | "ABSENT" | "CANCELLED" = "PRESENT";
 
-      // Occasionally a cancelled class (e.g. mass bunk or holiday)
+      // Occasionally a cancelled class (e.g. collective cancellation or holiday)
       if (hash % 29 === 0) {
         status = "CANCELLED";
       } else if (slot.subjectCode === "BIT-103") {

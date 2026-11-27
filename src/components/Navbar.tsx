@@ -189,7 +189,7 @@ export default function Navbar() {
 
   // Role-specific navigation links:
   // For the ADMIN account ONLY: keep Admin Panel, Timetable Centre (replacing My Timetable).
-  // Student-oriented links (Dashboard, Mark Attendance, Calculator, Class Polls, Analytics, History & Export, Mass Bunk)
+  // Student-oriented links (Dashboard, Mark Attendance, Calculator, Class Polls, Analytics, History & Export, Class Cancellation Reports)
   // are removed from the Admin account while profile controls, announcements, and logout remain.
   // For Students and CRs: keep all student-oriented navigation intact!
   const navLinks =
@@ -206,7 +206,7 @@ export default function Navbar() {
           { href: "/polls", label: "Class Polls", icon: Vote },
           { href: "/analytics", label: "Analytics", icon: Sparkles },
           { href: "/history", label: "History & Export", icon: History },
-          { href: "/cancellations", label: "Mass Bunk", icon: AlertTriangle },
+          { href: "/cancellations", label: "Class Cancellation Reports", icon: AlertTriangle },
         ];
 
   if (pathname === "/login") {

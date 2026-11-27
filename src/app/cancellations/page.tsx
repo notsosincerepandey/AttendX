@@ -196,10 +196,10 @@ export default function CancellationsPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white flex items-center gap-2.5">
             <AlertTriangle className="w-6 h-6 text-amber-500" />
-            Mass Bunk & Class Cancellation System
+            Class Cancellation Reports
           </h1>
           <p className="text-xs text-zinc-500 mt-1">
-            Community-driven cancellation verification. Confirmed cancellations are excluded from both numerator and denominator (+0/+0).
+            Community-reported class cancellations, subject to verification.
           </p>
         </div>
 
@@ -208,7 +208,7 @@ export default function CancellationsPage() {
             onClick={() => setIsSubmitModalOpen(true)}
             className="glossy-btn glossy-btn-primary shine-sweep px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md flex items-center gap-1.5 self-start sm:self-center"
           >
-            <Plus className="w-4 h-4" /> Report Cancellation / Mass Bunk
+            <Plus className="w-4 h-4" /> Report Class Cancellation
           </button>
         )}
       </div>
@@ -286,7 +286,9 @@ export default function CancellationsPage() {
                           : "bg-blue-950 text-blue-300 border border-blue-800/50"
                       }`}
                     >
-                      {r.reasonType.replace("_", " ")}
+                      {r.reasonType === "MASS_BUNK"
+                        ? "COLLECTIVE CANCELLATION"
+                        : r.reasonType.replace("_", " ")}
                     </span>
 
                     <span className="text-xs font-mono font-medium text-zinc-400">
@@ -359,7 +361,7 @@ export default function CancellationsPage() {
           <div className="futuristic-card rounded-2xl shadow-2xl border border-white/10 max-w-md w-full p-6 space-y-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-400" />
-              Report Schedule Change / Mass Bunk
+              Report a Class Cancellation
             </h3>
 
             <div className="space-y-3 text-xs">
@@ -371,7 +373,7 @@ export default function CancellationsPage() {
                   className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-lg font-medium text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
                   <option value="TEACHER_ABSENT">Teacher Absent / Class Cancelled</option>
-                  <option value="MASS_BUNK">Mass Bunk (Class-wide consensus)</option>
+                  <option value="MASS_BUNK">Collective Class Cancellation (Class Consensus)</option>
                   <option value="COLLEGE_HOLIDAY">University / Department Holiday</option>
                   <option value="OTHER">Other Schedule Disruption</option>
                 </select>
